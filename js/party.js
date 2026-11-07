@@ -14,7 +14,7 @@
     },
     {
       // 공격 대신 다른 동료를 heal만큼 회복한다. 화염구 피해는 skillDamage.
-      id: 'staff', name: '지팡이 두더지', hp: 60, attack: 0, heal: 10, attackName: '치유 마법', attackEvery: 4,
+      id: 'staff', name: '지팡이 두더지', hp: 60, attack: 0, heal: 10, attackName: '치유 마법', attackEvery: 5,
       skillName: '화염구 던지기', skillDesc: '화염구 30', skillDamage: 30, skillCooldown: 7,
     },
     {
