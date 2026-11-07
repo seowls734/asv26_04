@@ -18,11 +18,11 @@
     },
     {
       id: 'hero', name: '용사 두더지', hp: 30, attack: 35, attackName: '검기', attackEvery: 2.6,
-      skillName: '필살 베기', skillDesc: '큰 검기 100', skillCooldown: 8,
+      skillName: '필살 베기', skillDesc: '큰 검기 70', skillCooldown: 8,
     },
     {
       id: 'astronaut', name: '우주 두더지', hp: 100, attack: 70, attackName: '레이저', attackEvery: 3.6,
-      skillName: '레이저 포', skillDesc: '굵은 레이저 250', skillCooldown: 10,
+      skillName: '레이저 포', skillDesc: '굵은 레이저 170', skillCooldown: 10,
     },
   ];
 
