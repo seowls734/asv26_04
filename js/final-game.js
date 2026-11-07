@@ -6,7 +6,7 @@
   const HAMMER_DMG = 100, HAMMER_COOLDOWN_MS = 8000, HAMMER_SPEED = 300;
   // 동료
   const ALLY_R = 11, ALLY_SPACING = 27, ALLY_RANGE = 300, ALLY_DAMAGE_TAKEN = 0.7, ALLY_INVINCIBLE_MS = 1200;
-  const ARCHER_MINION_RANGE = 130, HEAL_HEARTS = 1, HEAL_HP = 15, GUARD_MS = 3000;
+  const ARCHER_MINION_RANGE = 130, HEAL_HEARTS = 1, GUARD_MS = 3000;
   const STONE_SPEED = 340, ARROW_SPEED = 430, WAVE_SPEED = 300, FAN_ANGLE = 0.24;
   const BIG_WAVE_DMG = 70, BIG_LASER_DMG = 170, FIREBALL_SPEED = 320;
   // 보스
@@ -199,11 +199,8 @@
   // 기술을 썼으면 true를 돌려준다. 보스가 사라진 동안에는 공격 기술을 아껴 둔다.
   const ALLY_SKILLS = {
     normal() {
+      // 내 하트만 채운다. 동료 회복은 지팡이 두더지가 맡는다.
       hearts = Math.min(MAX_HEARTS, hearts + HEAL_HEARTS);
-      livingAllies().forEach(other => {
-        other.hp = Math.min(other.def.hp, other.hp + HEAL_HP);
-        addFloat(other.x, other.y - 18, `+${HEAL_HP}`, '#8dffa0');
-      });
       addFloat(player.x, player.y - 22, '♥+1', '#8dffa0');
       GameSound.play('skillHeal');
       return true;

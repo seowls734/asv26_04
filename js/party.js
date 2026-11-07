@@ -6,7 +6,7 @@
   const PARTY_MEMBERS = [
     {
       id: 'normal', name: '일반 두더지', hp: 13, attack: 4, attackName: '돌멩이', attackEvery: 1.4,
-      skillName: '응원 치료', skillDesc: '내 하트 +1, 동료 체력 +15', skillCooldown: 9,
+      skillName: '응원 치료', skillDesc: '내 하트 +1', skillCooldown: 15,
     },
     {
       id: 'shield', name: '방패 두더지', hp: 36, attack: 1, attackName: '돌멩이', attackEvery: 1.4,

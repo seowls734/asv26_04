@@ -7,15 +7,13 @@
   const W = 420, H = 400, GROUND_Y = 320; // 그리기와 계산에 쓰는 논리 크기
   // 달리는 속도(초당 px)는 쉬지 않고 조금씩 빨라진다. 점수는 달린 거리 / SCORE_PER_PX.
   const SPEED_START = 250, SPEED_MAX = 540, SPEED_GAIN = 6.5, SCORE_PER_PX = 10;
-  // 점프 버튼을 길게 누를수록 높이 뜬다: 올라가는 중에 버튼을 떼면 SHORT_HOP_GRAVITY배로 빨리 꺾인다.
-  // 공중에서 ↓는 빨리 떨어진다.
-  const GRAVITY = 2300, JUMP_V = 760, FAST_FALL = 2600, SHORT_HOP_GRAVITY = 2.5;
+  // 점프 높이는 짧게 누르든 길게 누르든 늘 같다. 공중에서 ↓는 빨리 떨어진다.
+  const GRAVITY = 2300, JUMP_V = 760, FAST_FALL = 2600;
   const PLAYER_X = 80, STAND_W = 38, STAND_H = 46, DUCK_W = 50, DUCK_H = 26;
   const HIT_PAD = 5; // 그림보다 살짝 작은 충돌 범위
   const BIRD_FROM_SCORE = 300; // 이 점수부터 까마귀가 나온다
   const BIG_FROM_SCORE = 150; // 이 점수부터 큰 무리(돌 셋, 그루터기 둘)가 나온다
   const MILESTONE = 100, BLINK_MS = 900; // 100점마다 점수가 깜빡이며 소리가 난다
-  const NIGHT_EVERY = 700, NIGHT_FADE = 1.2; // 700점마다 낮과 밤이 바뀐다(바뀌는 데 걸리는 초)
   const RESTART_DELAY_MS = 450; // 부딪힌 직후 눌러 둔 점프로 바로 다시 시작하지 않게 잠깐 기다린다
   // 장애물 무리. count는 한 번에 나오는 개수, lift는 까마귀가 땅에서 떠 있는 높이.
   const OBSTACLES = {
@@ -31,8 +29,6 @@
   const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
   const DUCK_KEYS = ['ArrowDown', 'KeyS'];
   const STORE_KEY = 'dudeoji-run-best';
-  const DAY = { top: [143, 208, 238], bottom: [230, 245, 251], hill: [159, 210, 124], cloud: [255, 255, 255] };
-  const NIGHT = { top: [22, 30, 66], bottom: [58, 69, 112], hill: [55, 82, 66], cloud: [120, 130, 170] };
 
   const $ = id => document.getElementById(id);
   const canvas = $('runCanvas');
@@ -41,8 +37,8 @@
 
   let playing = false, over = false, overAt = 0;
   let frameId = 0, lastFrame = 0, clock = 0;
-  let player, obstacles, clouds, pebbles, stars, distance, nextGap, best = 0;
-  let lastMilestone = 0, blinkUntil = 0, night = 0;
+  let player, obstacles, clouds, pebbles, distance, nextGap, best = 0;
+  let lastMilestone = 0, blinkUntil = 0;
   let jumpHeld = false, duckHeld = false, padJump = false, padDuck = false;
   let autoNextTimer = 0;
   let onSuccess = () => {};
@@ -52,7 +48,6 @@
   const speed = () => Math.min(SPEED_MAX, SPEED_START + SPEED_GAIN * clock / 1000);
   const onGround = () => player.y >= GROUND_Y;
   const ducking = () => (duckHeld || padDuck) && onGround();
-  const mix = (a, b, t) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',')})`;
   const pad5 = n => String(n).padStart(5, '0');
 
   /* 장애물 */
@@ -104,11 +99,9 @@
     const v = speed();
     distance += v * sec;
 
-    const holding = jumpHeld || padJump;
-    if (holding && onGround()) jump();
+    if ((jumpHeld || padJump) && onGround()) jump();
     const fast = (duckHeld || padDuck) && !onGround() ? FAST_FALL : 0;
-    const short = player.vy < 0 && !holding ? SHORT_HOP_GRAVITY : 1; // 일찍 떼면 낮게 뛴다
-    player.vy += (GRAVITY * short + fast) * sec;
+    player.vy += (GRAVITY + fast) * sec;
     player.y += player.vy * sec;
     if (player.y >= GROUND_Y) {
       player.y = GROUND_Y;
@@ -138,8 +131,6 @@
     });
 
     const now = score();
-    const targetNight = Math.floor(now / NIGHT_EVERY) % 2;
-    night += Math.sign(targetNight - night) * Math.min(Math.abs(targetNight - night), sec / NIGHT_FADE);
     if (Math.floor(now / MILESTONE) > lastMilestone) {
       lastMilestone = Math.floor(now / MILESTONE);
       blinkUntil = clock + BLINK_MS;
@@ -161,25 +152,11 @@
   /* 그리기 */
   function drawBackground() {
     const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-    sky.addColorStop(0, mix(DAY.top, NIGHT.top, night));
-    sky.addColorStop(1, mix(DAY.bottom, NIGHT.bottom, night));
+    sky.addColorStop(0, '#8fd0ee');
+    sky.addColorStop(1, '#e6f5fb');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, W, GROUND_Y);
-    if (night > 0) { // 밤에는 별과 달이 뜬다
-      ctx.globalAlpha = night;
-      ctx.fillStyle = '#fff';
-      stars.forEach(s => ctx.fillRect(s.x, s.y, s.size, s.size));
-      ctx.fillStyle = '#f4f1d0';
-      ctx.beginPath();
-      ctx.arc(330, 60, 18, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = mix(DAY.top, NIGHT.top, night);
-      ctx.beginPath();
-      ctx.arc(338, 54, 15, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-    ctx.fillStyle = mix(DAY.cloud, NIGHT.cloud, night);
+    ctx.fillStyle = '#fff';
     clouds.forEach(c => {
       ctx.beginPath();
       ctx.arc(c.x, c.y, 14, 0, Math.PI * 2);
@@ -189,7 +166,7 @@
     });
     // 멀리 보이는 언덕은 천천히 지나간다
     const hillShift = (distance * 0.3) % 220;
-    ctx.fillStyle = mix(DAY.hill, NIGHT.hill, night);
+    ctx.fillStyle = '#9fd27c';
     for (let x = -hillShift - 110; x < W + 220; x += 220) {
       ctx.beginPath();
       ctx.ellipse(x, GROUND_Y + 10, 130, 60, 0, Math.PI, 0);
@@ -201,11 +178,6 @@
     ctx.fillRect(0, GROUND_Y, W, 7);
     ctx.fillStyle = '#6b4526';
     pebbles.forEach(p => ctx.fillRect(p.x, p.y, p.size, p.size * 0.6));
-  }
-  function drawNightShade() { // 밤에는 땅과 장애물도 어둑해진다
-    if (night <= 0) return;
-    ctx.fillStyle = `rgba(10,15,45,${night * 0.38})`;
-    ctx.fillRect(0, GROUND_Y - 80, W, H - GROUND_Y + 80);
   }
   function drawRock(x, y, w, h) {
     ctx.fillStyle = '#9a9184';
@@ -328,7 +300,7 @@
     ctx.font = '700 16px "IBM Plex Sans KR", "Malgun Gothic", monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
-    const ink = night > 0.5 ? '#e8ecff' : '#3b2416';
+    const ink = '#3b2416';
     const blinkOff = clock < blinkUntil && Math.floor((blinkUntil - clock) / 150) % 2;
     ctx.fillStyle = ink;
     if (!blinkOff) ctx.fillText(pad5(score()), W - 14, 12);
@@ -340,7 +312,6 @@
     drawBackground();
     obstacles.forEach(o => (o.bird ? drawBird(o) : drawGroup(o)));
     drawPlayer();
-    drawNightShade();
     drawScore();
   }
 
@@ -362,14 +333,12 @@
     distance = 0;
     lastMilestone = 0;
     blinkUntil = 0;
-    night = 0;
     over = false;
     player = { y: GROUND_Y, vy: 0, step: 0 };
     obstacles = [];
     nextGap = 300;
     clouds = Array.from({ length: 4 }, (_, i) => ({ x: i * 120 + rand(0, 60), y: rand(30, 150) }));
     pebbles = Array.from({ length: 14 }, () => ({ x: rand(0, W), y: rand(GROUND_Y + 8, H - 6), size: rand(3, 6) }));
-    stars = Array.from({ length: 30 }, () => ({ x: rand(0, W), y: rand(0, GROUND_Y - 90), size: rand(1, 2.4) }));
     releaseControls();
     renderStats();
     draw();
