@@ -5,23 +5,23 @@
   // 순서가 곧 최종 결전에서 줄지어 따라오는 순서다. attackEvery와 skillCooldown의 단위는 초다.
   const PARTY_MEMBERS = [
     {
-      id: 'normal', name: '일반 두더지', hp: 10, attack: 5, attackName: '돌멩이', attackEvery: 1.4,
+      id: 'normal', name: '일반 두더지', hp: 10, attack: 4, attackName: '돌멩이', attackEvery: 1.4,
       skillName: '응원 치료', skillDesc: '내 하트 +1, 동료 체력 +15', skillCooldown: 9,
     },
     {
-      id: 'shield', name: '방패 두더지', hp: 30, attack: 2, attackName: '돌멩이', attackEvery: 1.4,
+      id: 'shield', name: '방패 두더지', hp: 30, attack: 1, attackName: '돌멩이', attackEvery: 1.4,
       skillName: '철벽 방어', skillDesc: '3초 동안 나와 동료 모두 무적', skillCooldown: 11,
     },
     {
-      id: 'archer', name: '화살 두더지', hp: 15, attack: 15, attackName: '화살', attackEvery: 1.2,
+      id: 'archer', name: '화살 두더지', hp: 15, attack: 10, attackName: '화살', attackEvery: 1.2,
       skillName: '3연발', skillDesc: '화살 3발 부채꼴', skillCooldown: 6,
     },
     {
-      id: 'hero', name: '용사 두더지', hp: 30, attack: 50, attackName: '검기', attackEvery: 2.6,
+      id: 'hero', name: '용사 두더지', hp: 30, attack: 35, attackName: '검기', attackEvery: 2.6,
       skillName: '필살 베기', skillDesc: '큰 검기 100', skillCooldown: 8,
     },
     {
-      id: 'astronaut', name: '우주 두더지', hp: 100, attack: 100, attackName: '레이저', attackEvery: 3.6,
+      id: 'astronaut', name: '우주 두더지', hp: 100, attack: 70, attackName: '레이저', attackEvery: 3.6,
       skillName: '레이저 포', skillDesc: '굵은 레이저 250', skillCooldown: 10,
     },
   ];
