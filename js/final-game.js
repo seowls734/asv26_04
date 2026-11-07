@@ -30,7 +30,6 @@
   const SWEEP_WARN_MS = 700, SWEEP_MS = 1800, SWEEP_WIDTH = 22;
   const ICE_MS = 4500, ICE_R = 46, ICE_SLOW = 0.45, ICE_FADE_MS = 500;
   const GIANT_R = 80, GIANT_FALL_MS = 1600;
-  const BOMB_FUSE_MS = 2000, BOMB_PREVIEW_MS = 700, BOMB_BLAST_MS = 300, BOMB_LINE = 24;
   const BOUNCE_R = 10, BOUNCE_SPEED = 165, BOUNCE_TIMES = 3;
   const BOLT_COUNT = 6, BOLT_STEP = 55, BOLT_GAP_MS = 170, BOLT_WARN_MS = 500, BOLT_R = 28;
   // 기술 이름과 뽑힐 가중치. 지금 쓸 수 없는 기술은 canUse에서 걸러진다.
@@ -39,7 +38,7 @@
     ['barrier', 7], ['teleport', 7], ['summon', 7], ['heal', 8],
     ['spiral', 11], ['quake', 9], ['cross', 9], ['starRain', 9],
     ['missiles', 10], ['clones', 9], ['sweep', 9], ['ice', 8],
-    ['giant', 8], ['bombs', 8], ['bounce', 8], ['lightning', 8],
+    ['giant', 8], ['bounce', 8], ['lightning', 8],
   ];
   const W = 400, H = 520; // 그리기와 계산에 쓰는 논리 크기
   const MOVE_KEYS = {
@@ -56,7 +55,7 @@
   let playing = false;
   let frameId = 0, lastFrame = 0, clock = 0;
   let player, boss, allies, trail, shots, bullets, meteors, minions, beams, floats, hole, stars, quakes;
-  let missiles, clones, iceZones, bombs, bombBlasts, bolts;
+  let missiles, clones, iceZones, bolts;
   let hearts = MAX_HEARTS, invincibleUntil = 0, hurtUntil = 0;
   let nextStarAt = 0, hammerReadyAt = 0, guardUntil = 0, healReadyAt = 0, chipsText = '';
   let moves = { up: false, down: false, left: false, right: false };
@@ -306,7 +305,6 @@
     if (name === 'clones') return !clones.length;
     if (name === 'ice') return !iceZones.length;
     if (name === 'giant') return !meteors.length;
-    if (name === 'bombs') return !bombs.length && !bombBlasts.length;
     if (name === 'lightning') return !bolts.length;
     return true;
   }
@@ -488,17 +486,6 @@
       meteors = [{ x: player.x, y: player.y, r: GIANT_R, start: clock, at: clock + GIANT_FALL_MS * (raging() ? 0.85 : 1) }];
       addFloat(boss.x, boss.y - BOSS_R - 28, '거대 운석!', '#ffb08a');
       GameSound.play('bossMeteors');
-      endSkill();
-    },
-    // 십자 폭탄: 폭탄이 놓이고, 시간이 다 되면 가로세로 한 줄씩 끝까지 터진다.
-    bombs() {
-      const count = raging() ? 4 : 3;
-      const near = { x: clamp(player.x + rand(-60, 60), 30, W - 30), y: clamp(player.y + rand(-60, 60), 30, H - 30) };
-      bombs = [near];
-      while (bombs.length < count) bombs.push({ x: rand(30, W - 30), y: rand(30, H - 30) });
-      bombs.forEach((b, i) => { b.at = clock + BOMB_FUSE_MS + i * 120; });
-      addFloat(boss.x, boss.y - BOSS_R - 28, '십자 폭탄!', '#ffcf7a');
-      GameSound.play('bombFall');
       endSkill();
     },
     // 튕기는 구슬: 큰 탄이 벽에 세 번까지 튕기며 돌아다닌다.
@@ -773,19 +760,6 @@
     }
 
     iceZones = iceZones.filter(z => clock < z.until);
-
-    // 십자 폭탄: 터지면 그 자리의 가로줄과 세로줄 전체가 잠깐 위험해진다.
-    const exploding = bombs.filter(b => clock >= b.at);
-    if (exploding.length) {
-      bombs = bombs.filter(b => clock < b.at);
-      exploding.forEach(b => bombBlasts.push({ x: b.x, y: b.y, until: clock + BOMB_BLAST_MS }));
-      GameSound.play('meteorBlast');
-    }
-    bombBlasts = bombBlasts.filter(b => clock < b.until);
-    const inBlast = target => bombBlasts.some(b => Math.abs(target.x - b.x) < BOMB_LINE / 2 || Math.abs(target.y - b.y) < BOMB_LINE / 2);
-    if (inBlast(player)) hitPlayer();
-    if (!playing) return;
-    livingAllies().forEach(ally => { if (inBlast(ally)) hitAlly(ally, BOSS_ATTACK); });
 
     // 연쇄 번개: 표시된 자리에 차례로 내리친다.
     for (const bolt of bolts) {
@@ -1363,45 +1337,6 @@
       ctx.restore();
     });
   }
-  function drawBombs() {
-    bombs.forEach(b => {
-      const left = b.at - clock;
-      if (left < BOMB_PREVIEW_MS) { // 터지기 직전에는 터질 줄을 점선으로 보여 준다
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255,177,59,.8)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([8, 6]);
-        ctx.beginPath();
-        ctx.moveTo(0, b.y); ctx.lineTo(W, b.y);
-        ctx.moveTo(b.x, 0); ctx.lineTo(b.x, H);
-        ctx.stroke();
-        ctx.restore();
-      }
-      const blink = left < 600 && Math.floor(clock / 80) % 2;
-      ctx.fillStyle = blink ? '#e2202a' : '#2b2f3f';
-      ctx.strokeStyle = '#11131a';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, 11, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.strokeStyle = '#d9a860'; // 심지
-      ctx.beginPath();
-      ctx.moveTo(b.x + 5, b.y - 9);
-      ctx.quadraticCurveTo(b.x + 12, b.y - 16, b.x + 9, b.y - 20);
-      ctx.stroke();
-      drawStarShape(b.x + 9, b.y - 21, 4, Math.floor(clock / 60) % 2 ? '#ffe066' : '#ff8a3d');
-    });
-    bombBlasts.forEach(b => {
-      const life = clamp((b.until - clock) / BOMB_BLAST_MS, 0, 1);
-      ctx.fillStyle = `rgba(255,150,60,${0.35 + life * 0.5})`;
-      ctx.fillRect(0, b.y - BOMB_LINE / 2, W, BOMB_LINE);
-      ctx.fillRect(b.x - BOMB_LINE / 2, 0, BOMB_LINE, H);
-      ctx.fillStyle = `rgba(255,240,200,${life})`;
-      ctx.fillRect(0, b.y - BOMB_LINE / 6, W, BOMB_LINE / 3);
-      ctx.fillRect(b.x - BOMB_LINE / 6, 0, BOMB_LINE / 3, H);
-    });
-  }
   function drawBolts() {
     bolts.forEach(bolt => {
       if (clock < bolt.warnAt) return;
@@ -1451,7 +1386,6 @@
     drawMinions();
     drawAllies();
     drawPlayer();
-    drawBombs();
     drawBolts();
     drawBullets();
     drawMissiles();
@@ -1537,8 +1471,6 @@
     missiles = [];
     clones = [];
     iceZones = [];
-    bombs = [];
-    bombBlasts = [];
     bolts = [];
     minions = [];
     beams = [];
