@@ -1,5 +1,5 @@
 // 두더지 달리기(3단계): 끝없이 오른쪽으로 달리는 두더지가 장애물을 피하는 한 버튼 달리기.
-// 돌·그루터기 무리는 뛰어넘고, 까마귀는 높이에 따라 뛰거나 숙이거나 그냥 지나간다. 부딪히면 바로 끝난다.
+// 돌·그루터기 무리는 뛰어넘고, 낮은 까마귀는 뛰고, 까마귀 떼는 숙여서만, 높은 까마귀는 그냥 지나간다. 부딪히면 바로 끝난다.
 // 목표 점수를 넘으면 main.js가 넘겨준 onSuccess로 다음 단계에 넘어간다.
 (function () {
   const RUN_GOAL = 1000; // 목표 점수. 이 숫자만 바꾸면 점수판과 카드 문구도 함께 바뀐다.
@@ -12,6 +12,7 @@
   const PLAYER_X = 80, STAND_W = 38, STAND_H = 46, DUCK_W = 50, DUCK_H = 26;
   const HIT_PAD = 5; // 그림보다 살짝 작은 충돌 범위
   const BIRD_FROM_SCORE = 300; // 이 점수부터 까마귀가 나온다
+  const FLOCK_GAP = 36; // 까마귀 떼에서 위아래 까마귀 사이 간격
   const BIG_FROM_SCORE = 150; // 이 점수부터 큰 무리(돌 셋, 그루터기 둘)가 나온다
   const MILESTONE = 100, BLINK_MS = 900; // 100점마다 점수가 깜빡이며 소리가 난다
   const RESTART_DELAY_MS = 450; // 부딪힌 직후 눌러 둔 점프로 바로 다시 시작하지 않게 잠깐 기다린다
@@ -23,7 +24,8 @@
     stump1: { kind: 'stump', count: 1, w: 26, h: 44, weight: 3 },
     stump2: { kind: 'stump', count: 2, w: 26, h: 44, weight: 1, big: true },
     birdLow: { kind: 'bird', count: 1, w: 40, h: 22, lift: 4, weight: 1, bird: true }, // 뛰어야 피한다
-    birdMid: { kind: 'bird', count: 1, w: 40, h: 22, lift: 30, weight: 1, bird: true }, // 숙이거나 뛰어서 피한다
+    // 까마귀 떼: 세로로 높이 쌓여 있어서 뛰어넘을 수 없고, 숙여서만 지나갈 수 있다.
+    flock: { kind: 'bird', count: 5, w: 40, h: 22, lift: 30, weight: 1, bird: true, stack: true },
     birdHigh: { kind: 'bird', count: 1, w: 40, h: 22, lift: 58, weight: 1, bird: true }, // 서 있으면 머리 위로 지나간다
   };
   const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
@@ -66,10 +68,12 @@
   }
   function spawnObstacle() {
     const def = pickObstacle();
-    const w = def.w * def.count + (def.count - 1) * 2;
+    // 땅 위 무리는 옆으로, 까마귀 떼는 위로 쌓인다.
+    const w = def.stack ? def.w : def.w * def.count + (def.count - 1) * 2;
+    const h = def.stack ? def.h + (def.count - 1) * FLOCK_GAP : def.h;
     const bottom = GROUND_Y - (def.lift || 0);
     obstacles.push({
-      kind: def.kind, count: def.count, x: W + 10, y: bottom - def.h, w, h: def.h, bird: !!def.bird,
+      kind: def.kind, count: def.count, x: W + 10, y: bottom - h, w, h, bird: !!def.bird, stack: !!def.stack,
       sizes: Array.from({ length: def.count }, () => rand(0.8, 1)), // 무리 안에서 크기가 조금씩 다르다
     });
     // 점프 한 번에 걸리는 거리보다 넉넉히 띄워서, 착지할 자리가 항상 있게 한다. 빨라질수록 간격도 넓어진다.
@@ -223,8 +227,17 @@
     });
   }
   function drawBird(o) {
-    const flap = Math.sin(clock / 80) > 0;
-    const cx = o.x + o.w / 2, cy = o.y + o.h / 2 + 2;
+    if (!o.stack) {
+      drawCrow(o.x + o.w / 2, o.y + o.h / 2 + 2, 0);
+      return;
+    }
+    // 까마귀 떼는 아래에서부터 쌓아 그리고, 날갯짓을 조금씩 엇갈리게 한다.
+    for (let i = 0; i < o.count; i++) {
+      drawCrow(o.x + o.w / 2, o.y + o.h - 9 - i * FLOCK_GAP, i * 40);
+    }
+  }
+  function drawCrow(cx, cy, flapOffset) {
+    const flap = Math.sin((clock + flapOffset) / 80) > 0;
     ctx.fillStyle = '#2d2f3a';
     ctx.strokeStyle = '#11131a';
     ctx.lineWidth = 2;
