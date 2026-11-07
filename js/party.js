@@ -5,8 +5,8 @@
   // 순서가 곧 최종 결전에서 줄지어 따라오는 순서다. attackEvery와 skillCooldown의 단위는 초다.
   const PARTY_MEMBERS = [
     {
-      id: 'normal', name: '일반 두더지', hp: 13, attack: 4, attackName: '돌멩이', attackEvery: 1.4,
-      skillName: '응원 치료', skillDesc: '내 하트 +1', skillCooldown: 15,
+      id: 'normal', name: '일반 두더지', hp: 13, attack: 2, attackName: '돌멩이', attackEvery: 1.4,
+      skillName: '응원 치료', skillDesc: '내 하트 +1', skillCooldown: 13,
     },
     {
       id: 'shield', name: '방패 두더지', hp: 36, attack: 1, attackName: '돌멩이', attackEvery: 1.4,
@@ -27,7 +27,7 @@
     },
     {
       id: 'astronaut', name: '우주 두더지', hp: 120, attack: 70, attackName: '레이저', attackEvery: 3.6,
-      skillName: '레이저 포', skillDesc: '굵은 레이저 170', skillCooldown: 10,
+      skillName: '레이저 포', skillDesc: '굵은 레이저 150', skillCooldown: 10,
     },
   ];
 
