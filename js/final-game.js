@@ -25,11 +25,16 @@
   const QUAKE_WARN_MS = 800, QUAKE_SPEED = 230, QUAKE_MAX_R = 270, QUAKE_THICK = 12;
   const CROSS_WARN_MS = 900, CROSS_MS = 550, CROSS_WIDTH = 26, CROSS_SPIN = 0.9;
   const RAIN_GAP = 30, RAIN_SAFE = 3, RAIN_SPEED = 170, RAIN_ROW_MS = 650;
+  const MISSILE_SPEED = 150, MISSILE_TURN = 2.6, MISSILE_MS = 3800, MISSILE_R = 7; // TURN: 초당 꺾을 수 있는 각도
+  const CLONE_WARN_MS = 900, CLONE_BULLETS = 10, CLONE_BULLET_SPEED = 125;
+  const SWEEP_WARN_MS = 700, SWEEP_MS = 1800, SWEEP_WIDTH = 22;
+  const ICE_MS = 4500, ICE_R = 46, ICE_SLOW = 0.45, ICE_FADE_MS = 500;
   // 기술 이름과 뽑힐 가중치. 지금 쓸 수 없는 기술은 canUse에서 걸러진다.
   const BOSS_SKILLS = [
-    ['barrage', 20], ['meteors', 14], ['beam', 12], ['dash', 12], ['blackhole', 8],
-    ['barrier', 7], ['teleport', 8], ['summon', 8], ['heal', 8],
-    ['spiral', 12], ['quake', 10], ['cross', 10], ['starRain', 10],
+    ['barrage', 18], ['meteors', 12], ['beam', 11], ['dash', 11], ['blackhole', 7],
+    ['barrier', 7], ['teleport', 7], ['summon', 7], ['heal', 8],
+    ['spiral', 11], ['quake', 9], ['cross', 9], ['starRain', 9],
+    ['missiles', 10], ['clones', 9], ['sweep', 9], ['ice', 8],
   ];
   const W = 400, H = 520; // 그리기와 계산에 쓰는 논리 크기
   const MOVE_KEYS = {
@@ -46,6 +51,7 @@
   let playing = false;
   let frameId = 0, lastFrame = 0, clock = 0;
   let player, boss, allies, trail, shots, bullets, meteors, minions, beams, floats, hole, stars, quakes;
+  let missiles, clones, iceZones;
   let hearts = MAX_HEARTS, invincibleUntil = 0, hurtUntil = 0;
   let nextStarAt = 0, hammerReadyAt = 0, guardUntil = 0, healReadyAt = 0, chipsText = '';
   let moves = { up: false, down: false, left: false, right: false };
@@ -291,6 +297,9 @@
     if (name === 'heal') return boss.hp < BOSS_MAX_HP && clock >= healReadyAt;
     if (name === 'meteors') return !meteors.length;
     if (name === 'quake') return !quakes.length;
+    if (name === 'missiles') return !missiles.length;
+    if (name === 'clones') return !clones.length;
+    if (name === 'ice') return !iceZones.length;
     return true;
   }
   function chooseSkill() {
@@ -422,7 +431,54 @@
       boss.nextShot = clock;
       addFloat(boss.x, boss.y - BOSS_R - 28, '별똥별 비!', '#ffe066');
     },
+    // 추적 미사일: 나를 따라오는 미사일. 크게 돌면 따라오지 못하고, 시간이 지나면 터져 사라진다.
+    missiles() {
+      const count = raging() ? 4 : 3;
+      for (let i = 0; i < count; i++) {
+        const angle = -Math.PI / 2 + (i - (count - 1) / 2) * 0.7; // 위쪽으로 부채꼴로 쏘아 올린다
+        missiles.push({ x: boss.x, y: boss.y, angle, until: clock + MISSILE_MS });
+      }
+      addFloat(boss.x, boss.y - BOSS_R - 28, '추적 미사일!', '#ff9d8f');
+      GameSound.play('laser');
+      endSkill();
+    },
+    // 분신 탄막: 흐릿한 분신이 나타났다가 잠시 뒤 둥글게 별 탄을 뿌리고 사라진다.
+    clones() {
+      const count = raging() ? 3 : 2;
+      for (let i = 0; i < count; i++) {
+        clones.push(Object.assign(farPoint(), { fireAt: clock + CLONE_WARN_MS }));
+      }
+      addFloat(boss.x, boss.y - BOSS_R - 28, '분신술!', '#d9b3ff');
+      GameSound.play('summon');
+      endSkill();
+    },
+    // 회전 레이저: 점선으로 시작 방향을 보여 준 뒤, 레이저가 반 바퀴 휩쓸고 지나간다.
+    sweep() {
+      boss.state = 'sweepWarn';
+      boss.until = clock + SWEEP_WARN_MS;
+      const toPlayer = Math.atan2(player.y - boss.y, player.x - boss.x);
+      boss.sweepDir = Math.random() < 0.5 ? 1 : -1;
+      boss.sweepAngle = toPlayer - boss.sweepDir * 1.3; // 내 쪽을 지나가도록 조금 옆에서 시작한다
+    },
+    // 얼음 장판: 밟으면 느려지는 얼음이 깔린다. 하나는 내 발밑에 생긴다.
+    ice() {
+      const count = raging() ? 4 : 3;
+      iceZones.push({ x: player.x, y: player.y });
+      while (iceZones.length < count) {
+        iceZones.push({ x: rand(ICE_R, W - ICE_R), y: rand(H * 0.35, H - ICE_R) });
+      }
+      iceZones.forEach(z => {
+        z.start = clock;
+        z.until = clock + ICE_MS;
+      });
+      addFloat(boss.x, boss.y - BOSS_R - 28, '얼음 장판!', '#bfe9ff');
+      GameSound.play('bossBarrier');
+      endSkill();
+    },
   };
+  function sweepDirVec() { return { x: Math.cos(boss.sweepAngle), y: Math.sin(boss.sweepAngle) }; }
+  const iceActive = z => clock - z.start >= ICE_FADE_MS; // 깔리는 동안에는 아직 미끄럽지 않다
+  const onIce = target => iceZones.some(z => iceActive(z) && Math.hypot(target.x - z.x, target.y - z.y) < ICE_R);
   function crossDirs() {
     return [0, 1, 2, 3].map(i => {
       const angle = boss.crossAngle + i * Math.PI / 2;
@@ -530,6 +586,19 @@
         boss.nextShot = clock + RAIN_ROW_MS;
         if (boss.rowsLeft <= 0) endSkill();
       }
+    } else if (boss.state === 'sweepWarn') {
+      if (clock >= boss.until) {
+        boss.state = 'sweep';
+        boss.until = clock + SWEEP_MS;
+        GameSound.play('bossBeam');
+      }
+    } else if (boss.state === 'sweep') {
+      boss.sweepAngle += boss.sweepDir * Math.PI / (SWEEP_MS / 1000) * sec * (raging() ? 1.25 : 1);
+      const dir = sweepDirVec();
+      if (onRay(player, dir, SWEEP_WIDTH)) hitPlayer();
+      if (!playing) return;
+      livingAllies().forEach(ally => { if (onRay(ally, dir, SWEEP_WIDTH)) hitAlly(ally, BOSS_ATTACK); });
+      if (clock >= boss.until) endSkill();
     }
   }
   // 보스에서 dir 방향으로 뻗는 굵기 width의 광선에 닿았는지
@@ -603,6 +672,46 @@
       if (!playing) return;
       livingAllies().forEach(ally => { if (onRing(ally)) hitAlly(ally, BOSS_ATTACK * 0.8); });
     }
+
+    // 추적 미사일: 한 번에 꺾을 수 있는 각도가 정해져 있어서 크게 돌면 피할 수 있다.
+    const keptMissiles = [];
+    for (const m of missiles) {
+      const want = Math.atan2(player.y - m.y, player.x - m.x);
+      let turn = want - m.angle;
+      turn = Math.atan2(Math.sin(turn), Math.cos(turn)); // -π ~ π 사이로
+      const maxTurn = MISSILE_TURN * sec * (raging() ? 1.2 : 1);
+      m.angle += clamp(turn, -maxTurn, maxTurn);
+      m.x += Math.cos(m.angle) * MISSILE_SPEED * sec;
+      m.y += Math.sin(m.angle) * MISSILE_SPEED * sec;
+      const hitsPlayer = Math.hypot(player.x - m.x, player.y - m.y) < MISSILE_R + PLAYER_R - 3;
+      const ally = livingAllies().find(a => Math.hypot(a.x - m.x, a.y - m.y) < MISSILE_R + ALLY_R - 3);
+      if (hitsPlayer || ally || clock >= m.until) {
+        beams.push({ blast: true, small: true, x: m.x, y: m.y, until: clock + 280 });
+        if (hitsPlayer) hitPlayer();
+        if (!playing) return;
+        if (ally) hitAlly(ally, BOSS_ATTACK * 0.7);
+        continue;
+      }
+      keptMissiles.push(m);
+    }
+    missiles = keptMissiles;
+
+    // 분신: 때가 되면 둥글게 별 탄을 뿌리고 사라진다.
+    const firing = clones.filter(c => clock >= c.fireAt);
+    if (firing.length) {
+      clones = clones.filter(c => clock < c.fireAt);
+      firing.forEach(c => {
+        const spin = rand(0, Math.PI * 2);
+        const speed = CLONE_BULLET_SPEED * (raging() ? 1.2 : 1);
+        for (let i = 0; i < CLONE_BULLETS; i++) {
+          const angle = spin + i / CLONE_BULLETS * Math.PI * 2;
+          bullets.push({ x: c.x, y: c.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed });
+        }
+      });
+      GameSound.play('bossStar');
+    }
+
+    iceZones = iceZones.filter(z => clock < z.until);
   }
 
   /* 진행 */
@@ -613,8 +722,9 @@
     const len = Math.hypot(dx, dy); // 대각선이 더 빠르지 않게 한다
     player.faceX = dx / len;
     player.faceY = dy / len;
-    player.x = clamp(player.x + player.faceX * PLAYER_SPEED * sec, PLAYER_R, W - PLAYER_R);
-    player.y = clamp(player.y + player.faceY * PLAYER_SPEED * sec, PLAYER_R, H - PLAYER_R);
+    const speed = PLAYER_SPEED * (onIce(player) ? ICE_SLOW : 1); // 얼음 위에서는 느려진다
+    player.x = clamp(player.x + player.faceX * speed * sec, PLAYER_R, W - PLAYER_R);
+    player.y = clamp(player.y + player.faceY * speed * sec, PLAYER_R, H - PLAYER_R);
   }
   function update(sec) {
     movePlayer(sec);
@@ -988,7 +1098,7 @@
         const life = clamp((beam.until - clock) / 280, 0, 1);
         ctx.fillStyle = `rgba(255,140,60,${life * 0.7})`;
         ctx.beginPath();
-        ctx.arc(beam.x, beam.y, METEOR_R * (1.2 - life * 0.4), 0, Math.PI * 2);
+        ctx.arc(beam.x, beam.y, (beam.small ? 14 : METEOR_R) * (1.2 - life * 0.4), 0, Math.PI * 2);
         ctx.fill();
         return;
       }
@@ -1040,18 +1150,126 @@
     });
     ctx.globalAlpha = 1;
   }
+  function drawIce() {
+    iceZones.forEach(z => {
+      const grow = clamp((clock - z.start) / ICE_FADE_MS, 0, 1);
+      const fade = clamp((z.until - clock) / 500, 0, 1);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = iceActive(z) ? 'rgba(170,225,255,.35)' : 'rgba(170,225,255,.15)';
+      ctx.strokeStyle = '#bfe9ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(z.x, z.y, ICE_R * grow, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.7)'; // 얼음 결정
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) {
+        const a = i / 3 * Math.PI;
+        ctx.moveTo(z.x - Math.cos(a) * 12 * grow, z.y - Math.sin(a) * 12 * grow);
+        ctx.lineTo(z.x + Math.cos(a) * 12 * grow, z.y + Math.sin(a) * 12 * grow);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+  }
+  function drawSweepSkill() {
+    if (boss.state !== 'sweepWarn' && boss.state !== 'sweep') return;
+    const dir = sweepDirVec(), far = 700;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(boss.x, boss.y);
+    ctx.lineTo(boss.x + dir.x * far, boss.y + dir.y * far);
+    if (boss.state === 'sweepWarn') {
+      ctx.strokeStyle = '#ff5bd1';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([9, 7]);
+      ctx.stroke();
+      // 어느 쪽으로 돌지 화살표로 알려 준다
+      const side = boss.sweepAngle + boss.sweepDir * 0.35;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(boss.x, boss.y, BOSS_R + 18, Math.min(boss.sweepAngle, side), Math.max(boss.sweepAngle, side));
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'rgba(255,90,210,.9)';
+      ctx.lineWidth = SWEEP_WIDTH;
+      ctx.stroke();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = SWEEP_WIDTH * 0.35;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function drawClones() {
+    clones.forEach(c => {
+      const t = clamp(1 - (c.fireAt - clock) / CLONE_WARN_MS, 0, 1);
+      ctx.globalAlpha = 0.25 + t * 0.35 + (Math.floor(clock / 80) % 2) * 0.1;
+      ctx.fillStyle = '#6d3fb0';
+      ctx.strokeStyle = '#d9b3ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, BOSS_R - 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#ffc22e'; // 흐릿한 왕관
+      ctx.beginPath();
+      ctx.moveTo(c.x - 18, c.y - 32); ctx.lineTo(c.x - 22, c.y - 52); ctx.lineTo(c.x - 9, c.y - 42);
+      ctx.lineTo(c.x, c.y - 58); ctx.lineTo(c.x + 9, c.y - 42); ctx.lineTo(c.x + 22, c.y - 52); ctx.lineTo(c.x + 18, c.y - 32);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ff2a2a';
+      [-11, 11].forEach(dx => {
+        ctx.beginPath();
+        ctx.arc(c.x + dx, c.y - 6, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = `rgba(217,179,255,${1 - t})`; // 터지기 직전까지 줄어드는 고리
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, BOSS_R + (1 - t) * 30, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+  }
+  function drawMissiles() {
+    missiles.forEach(m => {
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      ctx.rotate(m.angle);
+      ctx.fillStyle = Math.floor(clock / 60) % 2 ? '#ffb13b' : '#ff6a1f'; // 꼬리 불꽃
+      ctx.beginPath();
+      ctx.moveTo(-8, -4); ctx.lineTo(-18, 0); ctx.lineTo(-8, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e8ecff';
+      ctx.strokeStyle = '#2b1a10';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(10, 0); ctx.lineTo(4, -5); ctx.lineTo(-8, -5); ctx.lineTo(-8, 5); ctx.lineTo(4, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#e2202a';
+      ctx.fillRect(-8, -7, 4, 14);
+      ctx.restore();
+    });
+  }
   function draw() {
     drawSpace();
+    drawIce();
     drawHole();
     drawMeteorShadows();
     drawBeamSkill();
     drawCrossSkill();
+    drawSweepSkill();
     drawQuakes();
+    drawClones();
     drawBoss();
     drawMinions();
     drawAllies();
     drawPlayer();
     drawBullets();
+    drawMissiles();
     drawShots();
     drawFloats();
   }
@@ -1111,7 +1329,7 @@
     boss = {
       x: W / 2, y: 110, hp: BOSS_MAX_HP, state: 'roam', until: 0, nextSkill: 1500,
       flashUntil: 0, barrierUntil: 0, healTaken: 0, beamX: 0, beamY: 1, vx: 0, vy: 0,
-      nextShot: 0, spin: 0, warnStart: 0, crossAngle: 0, rowsLeft: 0,
+      nextShot: 0, spin: 0, warnStart: 0, crossAngle: 0, rowsLeft: 0, sweepAngle: 0, sweepDir: 1,
     };
     allies = Party.members().map((def, i) => ({
       def,
@@ -1131,6 +1349,9 @@
     bullets = [];
     meteors = [];
     quakes = [];
+    missiles = [];
+    clones = [];
+    iceZones = [];
     minions = [];
     beams = [];
     floats = [];
