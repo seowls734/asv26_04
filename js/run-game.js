@@ -11,7 +11,7 @@
   const GRAVITY = 2300, JUMP_V = 760, FAST_FALL = 2600;
   const PLAYER_X = 80, STAND_W = 38, STAND_H = 46, DUCK_W = 50, DUCK_H = 26;
   const HIT_PAD = 5; // 그림보다 살짝 작은 충돌 범위
-  const BIRD_FROM_SCORE = 500; // 이 점수부터 까마귀가 나온다(까마귀 떼 포함)
+  const BIRD_FROM_SCORE = 300; // 이 점수부터 까마귀가 나온다(까마귀 떼 포함)
   const FLOCK_GAP = 36; // 까마귀 떼에서 위아래 까마귀 사이 간격
   const BIG_FROM_SCORE = 150; // 이 점수부터 큰 무리(돌 셋, 그루터기 둘)가 나온다
   const MILESTONE = 100, BLINK_MS = 900; // 100점마다 점수가 깜빡이며 소리가 난다
