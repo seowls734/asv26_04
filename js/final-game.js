@@ -10,7 +10,7 @@
   const STONE_SPEED = 340, ARROW_SPEED = 430, WAVE_SPEED = 300, FAN_ANGLE = 0.24;
   const BIG_WAVE_DMG = 70, BIG_LASER_DMG = 150, FIREBALL_SPEED = 320;
   // 보스
-  const BOSS_MAX_HP = 5000, BOSS_ATTACK = 80, BOSS_R = 44, BOSS_TOP = 60, BOSS_BOTTOM = 250;
+  const BOSS_MAX_HP = 5000, BOSS_ATTACK = 72, BOSS_R = 44, BOSS_TOP = 60, BOSS_BOTTOM = 250;
   const BOSS_SPEED = 30, RAGE_BELOW_HP = 2500, RAGE_SPEED = 1.6, RAGE_GAP = 0.7;
   const SKILL_GAP_MIN_MS = 2300, SKILL_GAP_MAX_MS = 3300;
   const STAR_BULLETS = 12, RAGE_STAR_BULLETS = 18, BULLET_SPEED = 135, BULLET_R = 6;
@@ -35,6 +35,10 @@
   const WALL_WARN_MS = 700, WALL_MS = 2600, WALL_W = 14, WALL_GAP = 84; // 양옆에서 조여 오는 레이저 벽
   const POISON_MS = 5000, POISON_R = 34, POISON_SPEED = 35, POISON_FADE_MS = 500;
   const TORNADO_WARN_MS = 700, TORNADO_SPEED = 150, TORNADO_R = 26, TORNADO_WAVE = 55;
+  const VOLLEY_COUNT = 3, VOLLEY_GAP_MS = 320, VOLLEY_BULLETS = 5, VOLLEY_SPREAD = 0.18, VOLLEY_SPEED = 210;
+  const ORB_SPEED = 55, ORB_MS = 3200, ORB_R = 16, ORB_PULL = 70, ORB_PULL_R = 130, ORB_BURST = 14, ORB_HOVER = 60;
+  const MINE_COUNT = 6, MINE_ARM_MS = 900, MINE_MS = 7000, MINE_TRIGGER_R = 30, MINE_BLAST_R = 42;
+  const CHAIN_WARN_MS = 380; // 3연속 돌진에서 두 번째부터는 더 짧게 경고한다
   // 기술 이름과 뽑힐 가중치. 지금 쓸 수 없는 기술은 canUse에서 걸러진다.
   const BOSS_SKILLS = [
     ['barrage', 18], ['meteors', 12], ['beam', 11], ['dash', 11], ['blackhole', 7],
@@ -43,6 +47,7 @@
     ['missiles', 10], ['clones', 9], ['sweep', 9], ['ice', 8],
     ['giant', 8], ['bounce', 8], ['lightning', 8],
     ['walls', 8], ['poison', 8], ['tornado', 8],
+    ['volley', 9], ['orb', 7], ['mines', 7], ['tripleDash', 7],
   ];
   const W = 400, H = 520; // 그리기와 계산에 쓰는 논리 크기
   const MOVE_KEYS = {
@@ -59,7 +64,7 @@
   let playing = false;
   let frameId = 0, lastFrame = 0, clock = 0;
   let player, boss, allies, trail, shots, bullets, meteors, minions, beams, floats, hole, stars, quakes;
-  let missiles, clones, iceZones, bolts, walls, clouds, tornadoes;
+  let missiles, clones, iceZones, bolts, walls, clouds, tornadoes, orbs, mines;
   let hearts = MAX_HEARTS, invincibleUntil = 0, hurtUntil = 0;
   let nextStarAt = 0, hammerReadyAt = 0, guardUntil = 0, healReadyAt = 0, chipsText = '';
   let moves = { up: false, down: false, left: false, right: false };
@@ -313,6 +318,8 @@
     if (name === 'walls') return !walls.length;
     if (name === 'poison') return !clouds.length;
     if (name === 'tornado') return !tornadoes.length;
+    if (name === 'orb') return !orbs.length;
+    if (name === 'mines') return !mines.length;
     return true;
   }
   function chooseSkill() {
@@ -383,6 +390,43 @@
     dash() {
       boss.state = 'dashWarn';
       boss.until = clock + DASH_WARN_MS;
+      boss.dashChain = 0;
+    },
+    // 3연속 돌진: 돌진이 끝나자마자 짧게 경고하고 다시 돌진한다. 분노하면 4연속.
+    tripleDash() {
+      boss.state = 'dashWarn';
+      boss.until = clock + DASH_WARN_MS;
+      boss.dashChain = raging() ? 3 : 2;
+      addFloat(boss.x, boss.y - BOSS_R - 28, '연속 돌진!', '#ff9d8f');
+    },
+    // 저격 연사: 내 쪽을 겨냥한 별 탄 5발 부채꼴을 세 번 연달아 쏜다. 쏠 때마다 다시 겨냥한다.
+    volley() {
+      boss.state = 'volley';
+      boss.shotsLeft = raging() ? VOLLEY_COUNT + 1 : VOLLEY_COUNT;
+      boss.nextShot = clock + 250;
+      addFloat(boss.x, boss.y - BOSS_R - 28, '저격 연사!', '#ff8fb0');
+    },
+    // 중력 구슬: 느린 구슬이 나를 따라오며 끌어당기다가, 시간이 다 되면 별 탄으로 터진다.
+    orb() {
+      orbs.push({ x: boss.x, y: boss.y + BOSS_R, start: clock, until: clock + ORB_MS * (raging() ? 0.85 : 1) });
+      addFloat(boss.x, boss.y - BOSS_R - 28, '중력 구슬!', '#b48aff');
+      GameSound.play('bossBlackhole');
+      endSkill();
+    },
+    // 지뢰밭: 지뢰가 흩어져 깔리고, 잠시 뒤 켜진 지뢰에 다가가면 터진다.
+    mines() {
+      const count = raging() ? MINE_COUNT + 2 : MINE_COUNT;
+      for (let i = 0; i < count; i++) {
+        let spot;
+        for (let tries = 0; tries < 20; tries++) { // 내 바로 옆에는 깔지 않는다
+          spot = { x: rand(24, W - 24), y: rand(H * 0.3, H - 24) };
+          if (dist(spot, player) > 70) break;
+        }
+        mines.push(Object.assign(spot, { armAt: clock + MINE_ARM_MS, until: clock + MINE_MS }));
+      }
+      addFloat(boss.x, boss.y - BOSS_R - 28, '지뢰밭!', '#ffcf7a');
+      GameSound.play('bombFall');
+      endSkill();
     },
     blackhole() {
       hole = { x: rand(90, W - 90), y: rand(140, H - 140), until: clock + HOLE_MS };
@@ -622,7 +666,27 @@
     } else if (boss.state === 'dash') {
       moveBoss(boss.vx, boss.vy, sec);
       hitArea(boss.x, boss.y, BOSS_R - 6, BOSS_ATTACK);
-      if (playing && clock >= boss.until) endSkill();
+      if (playing && clock >= boss.until) {
+        if (boss.dashChain > 0) { // 연속 돌진: 짧게 경고하고 다시
+          boss.dashChain--;
+          boss.state = 'dashWarn';
+          boss.until = clock + CHAIN_WARN_MS;
+        } else {
+          endSkill();
+        }
+      }
+    } else if (boss.state === 'volley') {
+      if (clock >= boss.nextShot) {
+        const base = Math.atan2(player.y - boss.y, player.x - boss.x);
+        for (let i = 0; i < VOLLEY_BULLETS; i++) {
+          const angle = base + (i - (VOLLEY_BULLETS - 1) / 2) * VOLLEY_SPREAD;
+          bullets.push({ x: boss.x, y: boss.y, vx: Math.cos(angle) * VOLLEY_SPEED, vy: Math.sin(angle) * VOLLEY_SPEED });
+        }
+        GameSound.play('bossStar');
+        boss.shotsLeft--;
+        boss.nextShot = clock + VOLLEY_GAP_MS;
+        if (boss.shotsLeft <= 0) endSkill();
+      }
     } else if (boss.state === 'teleport') {
       if (clock >= boss.until) {
         Object.assign(boss, farPoint());
@@ -848,6 +912,54 @@
       hitArea(t.x, t.y, TORNADO_R, BOSS_ATTACK * 0.8);
       if (!playing) return;
     }
+
+    // 중력 구슬: 느리게 따라오며 가까이 있으면 끌어당기고, 시간이 다 되면 별 탄으로 터진다.
+    const keptOrbs = [];
+    for (const o of orbs) {
+      const dir = aimDir(o, player);
+      if (dist(o, player) > ORB_HOVER) { // 바로 위까지 오지는 않고 조금 떨어져 맴돈다
+        o.x += dir.x * ORB_SPEED * sec;
+        o.y += dir.y * ORB_SPEED * sec;
+      }
+      const d = dist(o, player);
+      if (d < ORB_PULL_R && d > 1) {
+        player.x = clamp(player.x - dir.x * ORB_PULL * sec, PLAYER_R, W - PLAYER_R);
+        player.y = clamp(player.y - dir.y * ORB_PULL * sec, PLAYER_R, H - PLAYER_R);
+      }
+      hitArea(o.x, o.y, ORB_R, BOSS_ATTACK * 0.7);
+      if (!playing) return;
+      if (clock >= o.until) {
+        const spin = rand(0, Math.PI * 2);
+        for (let i = 0; i < ORB_BURST; i++) {
+          const angle = spin + i / ORB_BURST * Math.PI * 2;
+          bullets.push({
+            x: o.x + Math.cos(angle) * ORB_R, y: o.y + Math.sin(angle) * ORB_R, vx: Math.cos(angle) * 140, vy: Math.sin(angle) * 140,
+          });
+        }
+        beams.push({ blast: true, small: true, x: o.x, y: o.y, until: clock + 280 });
+        GameSound.play('meteorBlast');
+        continue;
+      }
+      keptOrbs.push(o);
+    }
+    orbs = keptOrbs;
+
+    // 지뢰: 켜진 지뢰에 나나 동료가 다가가면 터진다. 시간이 지나면 조용히 사라진다.
+    const keptMines = [];
+    for (const m of mines) {
+      if (clock >= m.until) continue;
+      const armed = clock >= m.armAt;
+      const near = target => Math.hypot(target.x - m.x, target.y - m.y) < MINE_TRIGGER_R;
+      if (armed && (near(player) || livingAllies().some(near))) {
+        beams.push({ blast: true, r: MINE_BLAST_R, x: m.x, y: m.y, until: clock + 280 });
+        GameSound.play('meteorBlast');
+        hitArea(m.x, m.y, MINE_BLAST_R, BOSS_ATTACK * 0.8);
+        if (!playing) return;
+        continue;
+      }
+      keptMines.push(m);
+    }
+    mines = keptMines;
   }
 
   /* 진행 */
@@ -1530,6 +1642,66 @@
       ctx.restore();
     });
   }
+  function drawOrbs() {
+    orbs.forEach(o => {
+      const left = o.until - clock;
+      // 끌어당기는 범위: 안쪽으로 빨려 드는 고리
+      ctx.strokeStyle = 'rgba(180,138,255,.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, ORB_R + ((clock / 6) % (ORB_PULL_R - ORB_R)), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(180,138,255,.18)';
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, ORB_PULL_R, 0, Math.PI * 2);
+      ctx.stroke();
+      const blink = left < 700 && Math.floor(clock / 70) % 2; // 터지기 직전 깜빡임
+      ctx.fillStyle = blink ? '#ffffff' : '#2a1350';
+      ctx.strokeStyle = '#b48aff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, ORB_R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#d9c4ff';
+      ctx.beginPath();
+      ctx.arc(o.x - 4, o.y - 4, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  function drawMines() {
+    mines.forEach(m => {
+      const armed = clock >= m.armAt;
+      const fade = clamp((m.until - clock) / 400, 0, 1);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = '#3a3f52';
+      ctx.strokeStyle = '#11131a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      for (let i = 0; i < 4; i++) { // 뾰족한 침
+        const a = i * Math.PI / 2 + Math.PI / 4;
+        ctx.beginPath();
+        ctx.moveTo(m.x + Math.cos(a) * 8, m.y + Math.sin(a) * 8);
+        ctx.lineTo(m.x + Math.cos(a) * 12, m.y + Math.sin(a) * 12);
+        ctx.stroke();
+      }
+      // 켜지면 빨간 불이 깜빡이고, 터지는 범위가 옅게 보인다
+      ctx.fillStyle = armed ? (Math.floor(clock / 250) % 2 ? '#ff3b3b' : '#7a1a1a') : '#6b6f80';
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      if (armed) {
+        ctx.strokeStyle = 'rgba(255,90,90,.25)';
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, MINE_TRIGGER_R, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
   function draw() {
     drawSpace();
     drawIce();
@@ -1548,6 +1720,8 @@
     drawWalls();
     drawPoison();
     drawTornadoes();
+    drawMines();
+    drawOrbs();
     drawBullets();
     drawMissiles();
     drawShots();
@@ -1610,6 +1784,7 @@
       x: W / 2, y: 110, hp: BOSS_MAX_HP, state: 'roam', until: 0, nextSkill: 1500,
       flashUntil: 0, barrierUntil: 0, healTaken: 0, beamX: 0, beamY: 1, vx: 0, vy: 0,
       nextShot: 0, spin: 0, warnStart: 0, crossAngle: 0, rowsLeft: 0, sweepAngle: 0, sweepDir: 1,
+      dashChain: 0, shotsLeft: 0,
     };
     allies = Party.members().map((def, i) => ({
       def,
@@ -1636,6 +1811,8 @@
     walls = [];
     clouds = [];
     tornadoes = [];
+    orbs = [];
+    mines = [];
     minions = [];
     beams = [];
     floats = [];
