@@ -23,10 +23,10 @@
     rock3: { kind: 'rock', count: 3, w: 18, h: 26, weight: 2, big: true },
     stump1: { kind: 'stump', count: 1, w: 26, h: 44, weight: 3 },
     stump2: { kind: 'stump', count: 2, w: 26, h: 44, weight: 1, big: true },
-    birdLow: { kind: 'bird', count: 1, w: 40, h: 22, lift: 4, weight: 3, bird: true }, // 뛰어야 피한다
+    birdLow: { kind: 'bird', count: 1, w: 40, h: 22, lift: 4, weight: 2, bird: true }, // 뛰어야 피한다
     // 까마귀 떼: 세로로 높이 쌓여 있어서 뛰어넘을 수 없고, 숙여서만 지나갈 수 있다.
-    flock: { kind: 'bird', count: 5, w: 40, h: 22, lift: 30, weight: 3, bird: true, stack: true },
-    birdHigh: { kind: 'bird', count: 1, w: 40, h: 22, lift: 58, weight: 3, bird: true }, // 서 있으면 머리 위로 지나간다
+    flock: { kind: 'bird', count: 5, w: 40, h: 22, lift: 30, weight: 2, bird: true, stack: true },
+    birdHigh: { kind: 'bird', count: 1, w: 40, h: 22, lift: 58, weight: 2, bird: true }, // 서 있으면 머리 위로 지나간다
   };
   const JUMP_KEYS = ['Space', 'ArrowUp', 'KeyW'];
   const DUCK_KEYS = ['ArrowDown', 'KeyS'];
