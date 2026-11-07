@@ -20,10 +20,11 @@
     <ol class="stages" aria-label="진행 단계">
       <li data-stage="mole">1 두더지</li>
       <li data-stage="block">2 블록</li>
-      <li data-stage="arrow">3 화살</li>
-      <li data-stage="boss">4 보스</li>
-      <li data-stage="space">5 우주</li>
-      <li data-stage="final">6 결전</li>
+      <li data-stage="run">3 달리기</li>
+      <li data-stage="arrow">4 화살</li>
+      <li data-stage="boss">5 보스</li>
+      <li data-stage="space">6 우주</li>
+      <li data-stage="final">7 결전</li>
     </ol>
 
     <!-- 두더지 잡기 화면 -->
@@ -106,8 +107,8 @@
           <h2>성공! 블록 200점 달성</h2>
           <p>지운 줄 <strong id="blockSuccessLines">0</strong>줄</p>
           <div class="join-card" data-join="shield"></div>
-          <p>잠시 후 화살 피하기로 넘어가요</p>
-          <button class="btn" id="blockNextBtn" type="button">화살 피하기로</button>
+          <p>잠시 후 두더지 달리기로 넘어가요</p>
+          <button class="btn" id="blockNextBtn" type="button">달리기로</button>
         </div>
 
         <div class="card" id="blockOverCard" hidden>
@@ -132,7 +133,57 @@
       </div>
     </main>
 
-    <!-- 3단계: 화살 피하기 화면 -->
+    <!-- 3단계: 두더지 달리기 화면 -->
+    <main class="screen" id="runScreen" hidden>
+      <section class="scoreboard three" aria-label="두더지 달리기 점수판">
+        <div class="stat"><span>점수</span><b><span id="runScore">0</span>/<span class="run-goal">1000</span></b></div>
+        <div class="stat"><span>속도</span><b id="runSpeed">1.0배</b></div>
+        <div class="stat"><span>최고 기록</span><b id="runBest">0</b></div>
+      </section>
+
+      <div class="run-wrap">
+        <canvas id="runCanvas" width="840" height="800" role="img" aria-label="두더지 달리기 게임판"></canvas>
+
+        <div class="card" id="runIntroCard">
+          <h2><span class="run-goal">1000</span>점까지 달리면 다음 단계!</h2>
+          <ul class="how-to">
+            <li><kbd>Space</kbd> <kbd>↑</kbd> <kbd>W</kbd> 또는 게임판 누르기로 점프 · 길게 누르면 높이 뛰어요</li>
+            <li><kbd>↓</kbd> <kbd>S</kbd> 숙이기 · 공중에서 누르면 빨리 내려와요</li>
+            <li>돌·그루터기 무리는 뛰어넘어요. 까마귀는 낮게 날면 뛰고, 중간이면 숙이고, 높이 날면 그냥 달려요</li>
+            <li>점점 빨라지고, 700점마다 낮과 밤이 바뀌어요. 한 번이라도 부딪히면 끝나요</li>
+            <li><kbd>Space</kbd>를 눌러 바로 시작할 수 있어요</li>
+          </ul>
+          <button class="btn" id="runStartBtn" type="button">달리기 시작</button>
+          <button class="btn ghost" id="runBackBtn" type="button">두더지로 돌아가기</button>
+        </div>
+
+        <div class="card" id="runSuccessCard" hidden>
+          <h2>성공! <span class="run-goal">1000</span>점 달성</h2>
+          <p>걸린 시간 <strong id="runSuccessTime">0초</strong></p>
+          <div class="join-card" data-join="staff"></div>
+          <p>잠시 후 화살 피하기로 넘어가요</p>
+          <button class="btn" id="runNextBtn" type="button">화살 피하기로</button>
+        </div>
+
+        <div class="card" id="runOverCard" hidden>
+          <h2>쿵! 부딪혔어요</h2>
+          <p><kbd>Space</kbd>를 누르면 바로 다시 달려요</p>
+          <dl class="result stacked">
+            <div><dt>점수</dt><dd id="runFinalScore">0</dd></div>
+            <div><dt>달리기 최고 기록</dt><dd id="runFinalBest">0</dd></div>
+          </dl>
+          <button class="btn" id="runRetryBtn" type="button">다시 달리기</button>
+          <button class="btn ghost" id="runOverBackBtn" type="button">두더지로 돌아가기</button>
+        </div>
+      </div>
+
+      <div class="pad two" id="runPad">
+        <button type="button" tabindex="-1" data-act="jump">점프</button>
+        <button type="button" tabindex="-1" data-act="duck">숙이기</button>
+      </div>
+    </main>
+
+    <!-- 4단계: 화살 피하기 화면 -->
     <main class="screen" id="arrowScreen" hidden>
       <section class="scoreboard three" aria-label="화살 피하기 점수판">
         <div class="stat"><span>피한 화살</span><b><span id="arrowDodged">0</span>/<span class="arrow-goal">100</span></b></div>
@@ -179,7 +230,7 @@
       </div>
     </main>
 
-    <!-- 4단계: 보스전 화면 -->
+    <!-- 5단계: 보스전 화면 -->
     <main class="screen" id="bossScreen" hidden>
       <section class="boss-hp" aria-label="보스 체력">
         <div class="boss-hp-label"><span>보스 두더지</span><b><span id="bossHp">1000</span>/1000</b></div>
@@ -246,7 +297,7 @@
       </div>
     </main>
 
-    <!-- 5단계: 지구 지키기 화면 -->
+    <!-- 6단계: 지구 지키기 화면 -->
     <main class="screen" id="spaceScreen" hidden>
       <section class="scoreboard boss-stats" aria-label="지구 지키기 점수판">
         <div class="stat"><span>부순 운석</span><b><span id="spaceDestroyed">0</span>/<span class="space-goal">100</span></b></div>
@@ -302,7 +353,7 @@
       </div>
     </main>
 
-    <!-- 6단계: 최종 결전 화면 -->
+    <!-- 7단계: 최종 결전 화면 -->
     <main class="screen" id="finalScreen" hidden>
       <section class="boss-hp" aria-label="우주 보스 두더지 체력">
         <div class="boss-hp-label"><span>우주 보스 두더지</span><b><span id="finalBossHp">4000</span>/<span id="finalBossMax">4000</span></b></div>
@@ -343,6 +394,7 @@
             <div><dt>살아남은 동료</dt><dd id="finalSumAlive">0</dd></div>
             <div><dt>두더지 점수</dt><dd id="finalSumMole">0</dd></div>
             <div><dt>블록 점수</dt><dd id="finalSumBlock">0</dd></div>
+            <div><dt>달리기 점수</dt><dd id="finalSumRun">0</dd></div>
             <div><dt>피한 화살</dt><dd id="finalSumArrow">0</dd></div>
             <div><dt>보스전 시간</dt><dd id="finalSumBoss">0초</dd></div>
             <div><dt>부순 운석</dt><dd id="finalSumSpace">0</dd></div>
@@ -379,6 +431,7 @@
   <script src="js/party.js"></script>
   <script src="js/mole-game.js"></script>
   <script src="js/block-game.js"></script>
+  <script src="js/run-game.js"></script>
   <script src="js/arrow-game.js"></script>
   <script src="js/boss-game.js"></script>
   <script src="js/space-game.js"></script>

@@ -1,8 +1,8 @@
-// 화면 전환과 키보드 입력 연결: 여섯 단계를 이어 주고, 키 입력은 지금 켜진 게임에만 전달한다.
+// 화면 전환과 키보드 입력 연결: 일곱 단계를 이어 주고, 키 입력은 지금 켜진 게임에만 전달한다.
 (function () {
   const $ = id => document.getElementById(id);
-  const SCREENS = ['mole', 'block', 'arrow', 'boss', 'space', 'final'];
-  const results = { mole: 0, block: 0, arrow: 0, boss: '', space: 0 };
+  const SCREENS = ['mole', 'block', 'run', 'arrow', 'boss', 'space', 'final'];
+  const results = { mole: 0, block: 0, run: 0, arrow: 0, boss: '', space: 0 };
   let activeGame = MoleGame;
 
   function setScreen(name) {
@@ -17,6 +17,7 @@
   function stopAll() {
     MoleGame.stop();
     BlockGame.stop();
+    RunGame.stop();
     ArrowGame.stop();
     BossGame.stop();
     SpaceGame.stop();
@@ -35,6 +36,12 @@
     activeGame = BlockGame;
     setScreen('block');
     BlockGame.showIntro();
+  }
+  function showRunScreen() {
+    stopAll();
+    activeGame = RunGame;
+    setScreen('run');
+    RunGame.showIntro();
   }
   function showArrowScreen() {
     stopAll();
@@ -97,6 +104,13 @@
     onBack: showMoleScreen,
     onSuccess(score) {
       results.block = score;
+      showRunScreen();
+    },
+  });
+  RunGame.init({
+    onBack: showMoleScreen,
+    onSuccess(score) {
+      results.run = score;
       showArrowScreen();
     },
   });

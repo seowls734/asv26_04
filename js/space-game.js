@@ -1,11 +1,11 @@
-// 지구 지키기(5단계): 우주선을 몰고 레이저로 운석을 부숴 지구를 지킨다.
+// 지구 지키기(6단계): 우주선을 몰고 레이저로 운석을 부숴 지구를 지킨다.
 // 목표 개수를 부수면 main.js가 넘겨준 onSuccess로 최종 결전에 넘어간다.
 (function () {
   const SPACE_GOAL = 100; // 목표 개수. 이 숫자만 바꾸면 점수판과 카드 문구도 함께 바뀐다.
   const AUTO_NEXT_MS = 4000;
   // 난이도: 부순 개수가 늘수록 시작값에서 끝값으로 바뀐다. 간격은 최솟값과 최댓값 사이에서 고른다.
-  const SPAWN_GAP_START_MIN = 560, SPAWN_GAP_START_MAX = 720;
-  const SPAWN_GAP_END_MIN = 230, SPAWN_GAP_END_MAX = 390;
+  const SPAWN_GAP_START_MIN = 480, SPAWN_GAP_START_MAX = 620;
+  const SPAWN_GAP_END_MIN = 200, SPAWN_GAP_END_MAX = 330;
   const DOUBLE_CHANCE_START = 0.25, DOUBLE_CHANCE_END = 0.55; // 두 개가 한꺼번에 나올 확률
   const FALL_SPEED_START = 70, FALL_SPEED_END = 165;
   const BIG_CHANCE_START = 0.12, BIG_CHANCE_END = 0.4;

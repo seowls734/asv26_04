@@ -1,4 +1,4 @@
-// 최종 결전(6단계): 내가 직접 움직이며 싸우고, 동료들이 뒤따라오며 알아서 싸우는 실시간 전투.
+// 최종 결전(7단계): 내가 직접 움직이며 싸우고, 동료들이 뒤따라오며 알아서 싸우는 실시간 전투.
 (function () {
   // 나
   const MAX_HEARTS = 5, PLAYER_R = 12, PLAYER_SPEED = 190, PLAYER_INVINCIBLE_MS = 1000;
@@ -8,7 +8,7 @@
   const ALLY_R = 11, ALLY_SPACING = 27, ALLY_RANGE = 300, ALLY_DAMAGE_TAKEN = 0.7, ALLY_INVINCIBLE_MS = 1200;
   const ARCHER_MINION_RANGE = 130, HEAL_HEARTS = 1, HEAL_HP = 15, GUARD_MS = 3000;
   const STONE_SPEED = 340, ARROW_SPEED = 430, WAVE_SPEED = 300, FAN_ANGLE = 0.24;
-  const BIG_WAVE_DMG = 70, BIG_LASER_DMG = 170;
+  const BIG_WAVE_DMG = 70, BIG_LASER_DMG = 170, FIREBALL_SPEED = 320;
   // 보스
   const BOSS_MAX_HP = 4000, BOSS_ATTACK = 80, BOSS_R = 44, BOSS_TOP = 60, BOSS_BOTTOM = 250;
   const BOSS_SPEED = 30, RAGE_BELOW_HP = 2000, RAGE_SPEED = 1.6, RAGE_GAP = 0.7;
@@ -236,7 +236,27 @@
       fireBeam(ally, boss, 16, '#7dffb0', BIG_LASER_DMG);
       return true;
     },
+    staff(ally) {
+      if (!isTargetable()) return false;
+      addShot(ally, aimDir(ally, boss), FIREBALL_SPEED, {
+        kind: 'fireball', damage: ally.def.skillDamage, r: 9, home: true,
+      });
+      GameSound.play('skillFireball');
+      return true;
+    },
   };
+  // 회복 동료: 다친 다른 동료가 있을 때만 회복하고, 모두 멀쩡하면 다음 기회까지 기다린다.
+  function healOthers(ally) {
+    const hurt = livingAllies().filter(other => other !== ally && other.hp < other.def.hp);
+    if (!hurt.length) return false;
+    hurt.forEach(other => {
+      other.hp = Math.min(other.def.hp, other.hp + ally.def.heal);
+      addFloat(other.x, other.y - 18, `+${ally.def.heal}`, '#8dffa0');
+    });
+    beams.push({ heal: true, x: ally.x, y: ally.y, until: clock + 400 });
+    GameSound.play('skillHeal');
+    return true;
+  }
   function recordTrail() {
     const last = trail[trail.length - 1];
     if (Math.hypot(player.x - last.x, player.y - last.y) < 3) return;
@@ -256,7 +276,9 @@
         ally.nextSkill = clock + ally.def.skillCooldown * 1000;
         if (!playing) return;
       }
-      if (clock >= ally.nextAttack && isTargetable() && dist(ally, boss) <= ALLY_RANGE) {
+      if (ally.def.heal) {
+        if (clock >= ally.nextAttack && healOthers(ally)) ally.nextAttack = clock + ally.def.attackEvery * 1000;
+      } else if (clock >= ally.nextAttack && isTargetable() && dist(ally, boss) <= ALLY_RANGE) {
         ally.nextAttack = clock + ally.def.attackEvery * 1000;
         GameSound.play('partyAttack');
         ALLY_ATTACKS[ally.def.id](ally);
@@ -928,6 +950,24 @@
         ctx.moveTo(shot.x, shot.y);
         ctx.lineTo(shot.x - shot.vx / len * 14, shot.y - shot.vy / len * 14);
         ctx.stroke();
+      } else if (shot.kind === 'fireball') {
+        const len = Math.max(Math.hypot(shot.vx, shot.vy), 1);
+        const ux = shot.vx / len, uy = shot.vy / len;
+        ctx.fillStyle = 'rgba(255,120,40,.45)'; // 꼬리 불꽃
+        ctx.beginPath();
+        ctx.moveTo(shot.x - uy * 8, shot.y + ux * 8);
+        ctx.lineTo(shot.x - ux * 26, shot.y - uy * 26);
+        ctx.lineTo(shot.x + uy * 8, shot.y - ux * 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ff6a1f';
+        ctx.beginPath();
+        ctx.arc(shot.x, shot.y, shot.r + Math.sin(clock / 50) * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffe08a';
+        ctx.beginPath();
+        ctx.arc(shot.x, shot.y, shot.r * 0.5, 0, Math.PI * 2);
+        ctx.fill();
       } else { // 검기
         const angle = Math.atan2(shot.vy, shot.vx);
         ctx.strokeStyle = shot.kind === 'bigWave' ? '#ffffff' : '#bfe3ff';
@@ -938,6 +978,15 @@
       }
     });
     beams.forEach(beam => {
+      if (beam.heal) { // 지팡이 두더지의 치유 마법: 초록 고리가 퍼진다
+        const life = clamp((beam.until - clock) / 400, 0, 1);
+        ctx.strokeStyle = `rgba(141,255,160,${life})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(beam.x, beam.y, 14 + (1 - life) * 40, 0, Math.PI * 2);
+        ctx.stroke();
+        return;
+      }
       if (beam.blast) {
         const life = clamp((beam.until - clock) / 280, 0, 1);
         ctx.fillStyle = `rgba(255,140,60,${life * 0.7})`;
@@ -1126,6 +1175,7 @@
     $('finalSumAlive').textContent = `${livingAllies().length}/${allies.length}`;
     $('finalSumMole').textContent = results.mole;
     $('finalSumBlock').textContent = results.block;
+    $('finalSumRun').textContent = results.run;
     $('finalSumArrow').textContent = results.arrow;
     $('finalSumBoss').textContent = results.boss;
     $('finalSumSpace').textContent = results.space;
@@ -1167,7 +1217,7 @@
     specialBtn.addEventListener('contextmenu', e => e.preventDefault());
   }
   function loadAllyImages() {
-    ['normal', 'shield', 'archer', 'hero', 'astronaut'].forEach(id => {
+    ['normal', 'shield', 'staff', 'archer', 'hero', 'astronaut'].forEach(id => {
       const image = new Image();
       const svg = Party.art(id).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
       image.src = `data:image/svg+xml,${encodeURIComponent(svg)}`;

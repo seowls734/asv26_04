@@ -5,23 +5,28 @@
   // 순서가 곧 최종 결전에서 줄지어 따라오는 순서다. attackEvery와 skillCooldown의 단위는 초다.
   const PARTY_MEMBERS = [
     {
-      id: 'normal', name: '일반 두더지', hp: 10, attack: 4, attackName: '돌멩이', attackEvery: 1.4,
+      id: 'normal', name: '일반 두더지', hp: 13, attack: 4, attackName: '돌멩이', attackEvery: 1.4,
       skillName: '응원 치료', skillDesc: '내 하트 +1, 동료 체력 +15', skillCooldown: 9,
     },
     {
-      id: 'shield', name: '방패 두더지', hp: 30, attack: 1, attackName: '돌멩이', attackEvery: 1.4,
+      id: 'shield', name: '방패 두더지', hp: 36, attack: 1, attackName: '돌멩이', attackEvery: 1.4,
       skillName: '철벽 방어', skillDesc: '3초 동안 나와 동료 모두 무적', skillCooldown: 11,
     },
     {
-      id: 'archer', name: '화살 두더지', hp: 15, attack: 10, attackName: '화살', attackEvery: 1.2,
+      // 공격 대신 다른 동료를 heal만큼 회복한다. 화염구 피해는 skillDamage.
+      id: 'staff', name: '지팡이 두더지', hp: 15, attack: 0, heal: 10, attackName: '치유 마법', attackEvery: 4,
+      skillName: '화염구 던지기', skillDesc: '화염구 30', skillDamage: 30, skillCooldown: 7,
+    },
+    {
+      id: 'archer', name: '화살 두더지', hp: 18, attack: 10, attackName: '화살', attackEvery: 1.2,
       skillName: '3연발', skillDesc: '화살 3발 부채꼴', skillCooldown: 6,
     },
     {
-      id: 'hero', name: '용사 두더지', hp: 30, attack: 35, attackName: '검기', attackEvery: 2.6,
+      id: 'hero', name: '용사 두더지', hp: 36, attack: 35, attackName: '검기', attackEvery: 2.6,
       skillName: '필살 베기', skillDesc: '큰 검기 70', skillCooldown: 8,
     },
     {
-      id: 'astronaut', name: '우주 두더지', hp: 100, attack: 70, attackName: '레이저', attackEvery: 3.6,
+      id: 'astronaut', name: '우주 두더지', hp: 120, attack: 70, attackName: '레이저', attackEvery: 3.6,
       skillName: '레이저 포', skillDesc: '굵은 레이저 170', skillCooldown: 10,
     },
   ];
@@ -31,6 +36,14 @@
     normal: '',
     shield: `<path d="M55 58h34v22q0 18-17 26-17-8-17-26Z" fill="#3f7fd0" ${LINE}/>
       <path d="M72 64v34M61 78h22" stroke="#fff8e6" stroke-width="3"/>`,
+    staff: `<path d="M50 1l-30 31h60Z" fill="#5b3fa8" ${LINE}/>
+      <path d="M14 32h72" stroke="#2b1a10" stroke-width="5" stroke-linecap="round"/>
+      <path d="M14 32h72" stroke="#7a5cd0" stroke-width="2.500" stroke-linecap="round"/>
+      <circle cx="46" cy="14" r="3" fill="#ffc22e"/><circle cx="56" cy="22" r="2" fill="#ffc22e"/>
+      <path d="M92 40v66" stroke="#2b1a10" stroke-width="6" stroke-linecap="round"/>
+      <path d="M92 40v66" stroke="#a0703f" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="92" cy="36" r="7" fill="#ff8a3d" ${LINE}/>
+      <circle cx="90" cy="34" r="2.500" fill="#ffe3a0"/>`,
     archer: `<path d="M13 30q37-14 74 0v9q-37-13-74 0Z" fill="#d92f2f" ${LINE}/>
       <path d="M87 34l10-6M87 36l10 5" stroke="#d92f2f" stroke-width="4" stroke-linecap="round"/>
       <path d="M12 54q-16 24 0 48" fill="none" stroke="#6b4526" stroke-width="4"/>
@@ -62,6 +75,10 @@
   }
 
   const byId = id => PARTY_MEMBERS.find(member => member.id === id);
+  // 회복 동료는 공격력 대신 회복량을 보여 준다.
+  const statLine = member => (member.heal
+    ? `체력 ${member.hp} · 회복 ${member.heal}`
+    : `체력 ${member.hp} · 공격력 ${member.attack}`);
   let joined = [];
   let popup = null, popupTimer = 0;
 
@@ -86,7 +103,7 @@
       <h2>동료 획득!</h2>
       <b class="ally-popup-name">${member.name} 획득!</b>
       <div class="ally-popup-art">${memberArt(member.id)}</div>
-      <p>체력 ${member.hp} · 공격력 ${member.attack}</p>
+      <p>${statLine(member)}</p>
       <p class="ally-popup-skill"><b>${member.skillName}</b> ${member.skillDesc}</p>
       <small>동료 ${joined.length}/${PARTY_MEMBERS.length}</small>
     </div>`;
@@ -119,7 +136,7 @@
         const member = byId(el.dataset.join);
         el.innerHTML = `<div class="join-art">${memberArt(member.id)}</div>
           <div class="join-text"><b>${member.name}가 동료가 되었어요!</b>
-          <span>체력 ${member.hp} · 공격력 ${member.attack}</span></div>`;
+          <span>${statLine(member)}</span></div>`;
       });
     },
   };

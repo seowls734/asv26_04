@@ -1,4 +1,4 @@
-/* 전체 스타일: 1단계는 낮의 잔디밭, 2단계는 땅속, 3단계는 해 질 녘 하늘, 4단계는 밤의 숲, 5·6단계는 우주로 꾸민다. */
+/* 전체 스타일: 1단계는 낮의 잔디밭, 2단계는 땅속, 3단계는 맑은 들판, 4단계는 해 질 녘 하늘, 5단계는 밤의 숲, 6·7단계는 우주로 꾸민다. */
 :root {
   color-scheme: light;
   --sky: #bfe6f5;
@@ -18,6 +18,10 @@
 }
 body[data-screen="block"] {
   --page-bg: #4a2f1c;
+  --page-ink: var(--paper);
+}
+body[data-screen="run"] {
+  --page-bg: #3e6f8f;
   --page-ink: var(--paper);
 }
 body[data-screen="arrow"] {
@@ -410,6 +414,18 @@ kbd {
 .pad.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pad.two button { font-size: 24px; }
 
+/* 두더지 달리기 화면 */
+.run-wrap {
+  position: relative;
+  width: min(100%, 440px, max(240px, calc((100dvh - 300px) * 420 / 400)));
+  margin-inline: auto;
+  overflow: hidden;
+  border: 3px solid #24425a;
+  border-radius: 8px;
+}
+#runCanvas { display: block; width: 100%; height: auto; background: #bfe6f5; touch-action: none; }
+#runPad button { font-size: 18px; }
+
 /* 화살 피하기 화면 */
 .hearts { letter-spacing: .05em; color: #ff7a8a !important; }
 .field-wrap {
@@ -538,7 +554,7 @@ kbd {
 .final-me.ready { border-color: var(--marigold); box-shadow: 0 0 8px rgb(255 194 46 / .6); }
 .final-special { font-weight: 700; color: #cfd6f2; font-variant-numeric: tabular-nums; }
 .final-me.ready .final-special { color: var(--marigold); }
-.final-party { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.final-party { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
 .final-member {
   min-width: 0;
   display: grid;

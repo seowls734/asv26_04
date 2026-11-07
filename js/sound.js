@@ -54,6 +54,10 @@
     blockDrop() { tone(320, 90, { to: 90, gain: 0.07 }); },
     blockLine() { melody([523, 659, 784, 1047], 80, 0.05); },
     blockLevel() { melody([659, 880, 1175], 120, 0.09, { gain: 0.07 }); },
+    skillFireball() { tone(220, 260, { to: 520, type: 'sawtooth', gain: 0.06 }); tone(900, 180, { to: 300, gain: 0.03 }); },
+    runJump() { tone(360, 110, { to: 720, type: 'triangle', gain: 0.07 }); },
+    runPoint() { melody([880, 1175], 70, 0.06, { gain: 0.05 }); },
+    runHit() { melody([300, 220, 150], 140, 0.11, { gain: 0.08 }); },
     blockOver() { melody([440, 370, 311, 220], 230, 0.18, { gain: 0.06 }); },
     arrowHit() {
       tone(900, 110, { to: 180, type: 'sawtooth', gain: 0.08 });
