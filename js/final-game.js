@@ -29,12 +29,17 @@
   const CLONE_WARN_MS = 900, CLONE_BULLETS = 10, CLONE_BULLET_SPEED = 125;
   const SWEEP_WARN_MS = 700, SWEEP_MS = 1800, SWEEP_WIDTH = 22;
   const ICE_MS = 4500, ICE_R = 46, ICE_SLOW = 0.45, ICE_FADE_MS = 500;
+  const GIANT_R = 80, GIANT_FALL_MS = 1600;
+  const BOMB_FUSE_MS = 2000, BOMB_PREVIEW_MS = 700, BOMB_BLAST_MS = 300, BOMB_LINE = 24;
+  const BOUNCE_R = 10, BOUNCE_SPEED = 165, BOUNCE_TIMES = 3;
+  const BOLT_COUNT = 6, BOLT_STEP = 55, BOLT_GAP_MS = 170, BOLT_WARN_MS = 500, BOLT_R = 28;
   // 기술 이름과 뽑힐 가중치. 지금 쓸 수 없는 기술은 canUse에서 걸러진다.
   const BOSS_SKILLS = [
     ['barrage', 18], ['meteors', 12], ['beam', 11], ['dash', 11], ['blackhole', 7],
     ['barrier', 7], ['teleport', 7], ['summon', 7], ['heal', 8],
     ['spiral', 11], ['quake', 9], ['cross', 9], ['starRain', 9],
     ['missiles', 10], ['clones', 9], ['sweep', 9], ['ice', 8],
+    ['giant', 8], ['bombs', 8], ['bounce', 8], ['lightning', 8],
   ];
   const W = 400, H = 520; // 그리기와 계산에 쓰는 논리 크기
   const MOVE_KEYS = {
@@ -51,7 +56,7 @@
   let playing = false;
   let frameId = 0, lastFrame = 0, clock = 0;
   let player, boss, allies, trail, shots, bullets, meteors, minions, beams, floats, hole, stars, quakes;
-  let missiles, clones, iceZones;
+  let missiles, clones, iceZones, bombs, bombBlasts, bolts;
   let hearts = MAX_HEARTS, invincibleUntil = 0, hurtUntil = 0;
   let nextStarAt = 0, hammerReadyAt = 0, guardUntil = 0, healReadyAt = 0, chipsText = '';
   let moves = { up: false, down: false, left: false, right: false };
@@ -300,6 +305,9 @@
     if (name === 'missiles') return !missiles.length;
     if (name === 'clones') return !clones.length;
     if (name === 'ice') return !iceZones.length;
+    if (name === 'giant') return !meteors.length;
+    if (name === 'bombs') return !bombs.length && !bombBlasts.length;
+    if (name === 'lightning') return !bolts.length;
     return true;
   }
   function chooseSkill() {
@@ -475,6 +483,53 @@
       GameSound.play('bossBarrier');
       endSkill();
     },
+    // 거대 운석: 내 자리에 아주 큰 그림자가 천천히 짙어지다가 커다란 운석이 떨어진다.
+    giant() {
+      meteors = [{ x: player.x, y: player.y, r: GIANT_R, start: clock, at: clock + GIANT_FALL_MS * (raging() ? 0.85 : 1) }];
+      addFloat(boss.x, boss.y - BOSS_R - 28, '거대 운석!', '#ffb08a');
+      GameSound.play('bossMeteors');
+      endSkill();
+    },
+    // 십자 폭탄: 폭탄이 놓이고, 시간이 다 되면 가로세로 한 줄씩 끝까지 터진다.
+    bombs() {
+      const count = raging() ? 4 : 3;
+      const near = { x: clamp(player.x + rand(-60, 60), 30, W - 30), y: clamp(player.y + rand(-60, 60), 30, H - 30) };
+      bombs = [near];
+      while (bombs.length < count) bombs.push({ x: rand(30, W - 30), y: rand(30, H - 30) });
+      bombs.forEach((b, i) => { b.at = clock + BOMB_FUSE_MS + i * 120; });
+      addFloat(boss.x, boss.y - BOSS_R - 28, '십자 폭탄!', '#ffcf7a');
+      GameSound.play('bombFall');
+      endSkill();
+    },
+    // 튕기는 구슬: 큰 탄이 벽에 세 번까지 튕기며 돌아다닌다.
+    bounce() {
+      const count = raging() ? 7 : 5;
+      const base = Math.atan2(player.y - boss.y, player.x - boss.x);
+      for (let i = 0; i < count; i++) {
+        const angle = base + (i - (count - 1) / 2) * 0.45;
+        const speed = BOUNCE_SPEED * (raging() ? 1.15 : 1);
+        bullets.push({
+          x: boss.x, y: boss.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, r: BOUNCE_R, bounces: BOUNCE_TIMES,
+        });
+      }
+      GameSound.play('bossStar');
+      endSkill();
+    },
+    // 연쇄 번개: 보스에서 내 쪽으로 번개가 한 칸씩 차례로 내리친다. 떨어질 자리는 미리 표시된다.
+    lightning() {
+      const dir = aimDir(boss, player);
+      const count = raging() ? BOLT_COUNT + 2 : BOLT_COUNT;
+      for (let i = 0; i < count; i++) {
+        const along = BOSS_R + 20 + i * BOLT_STEP;
+        bolts.push({
+          x: clamp(boss.x + dir.x * along + rand(-10, 10), BOLT_R, W - BOLT_R),
+          y: clamp(boss.y + dir.y * along + rand(-10, 10), BOLT_R, H - BOLT_R),
+          warnAt: clock + i * BOLT_GAP_MS, at: clock + BOLT_WARN_MS + i * BOLT_GAP_MS, struck: false,
+        });
+      }
+      addFloat(boss.x, boss.y - BOSS_R - 28, '연쇄 번개!', '#fff59a');
+      endSkill();
+    },
   };
   function sweepDirVec() { return { x: Math.cos(boss.sweepAngle), y: Math.sin(boss.sweepAngle) }; }
   const iceActive = z => clock - z.start >= ICE_FADE_MS; // 깔리는 동안에는 아직 미끄럽지 않다
@@ -612,8 +667,14 @@
     bullets = bullets.filter(b => {
       b.x += b.vx * sec;
       b.y += b.vy * sec;
-      const hitsPlayer = Math.hypot(player.x - b.x, player.y - b.y) < BULLET_R + PLAYER_R - 3;
-      const hitAllyTarget = livingAllies().find(a => Math.hypot(a.x - b.x, a.y - b.y) < BULLET_R + ALLY_R - 3);
+      if (b.bounces > 0) { // 튕기는 구슬은 벽에 닿으면 방향을 바꾼다
+        const r = b.r;
+        if ((b.x < r && b.vx < 0) || (b.x > W - r && b.vx > 0)) { b.vx = -b.vx; b.bounces--; }
+        else if ((b.y < r && b.vy < 0) || (b.y > H - r && b.vy > 0)) { b.vy = -b.vy; b.bounces--; }
+      }
+      const br = b.r || BULLET_R;
+      const hitsPlayer = Math.hypot(player.x - b.x, player.y - b.y) < br + PLAYER_R - 3;
+      const hitAllyTarget = livingAllies().find(a => Math.hypot(a.x - b.x, a.y - b.y) < br + ALLY_R - 3);
       if (hitsPlayer) hitPlayer();
       if (hitAllyTarget) hitAlly(hitAllyTarget, BOSS_ATTACK * 0.6);
       if (hitsPlayer || hitAllyTarget) return false;
@@ -625,8 +686,8 @@
     if (landed.length) {
       meteors = meteors.filter(m => clock < m.at);
       landed.forEach(m => {
-        beams.push({ blast: true, x: m.x, y: m.y, until: clock + 280 });
-        hitArea(m.x, m.y, METEOR_R, BOSS_ATTACK);
+        beams.push({ blast: true, r: m.r || METEOR_R, x: m.x, y: m.y, until: clock + 280 });
+        hitArea(m.x, m.y, m.r || METEOR_R, BOSS_ATTACK * (m.r ? 1.2 : 1));
       });
       GameSound.play('fake');
       if (!playing) return;
@@ -712,6 +773,29 @@
     }
 
     iceZones = iceZones.filter(z => clock < z.until);
+
+    // 십자 폭탄: 터지면 그 자리의 가로줄과 세로줄 전체가 잠깐 위험해진다.
+    const exploding = bombs.filter(b => clock >= b.at);
+    if (exploding.length) {
+      bombs = bombs.filter(b => clock < b.at);
+      exploding.forEach(b => bombBlasts.push({ x: b.x, y: b.y, until: clock + BOMB_BLAST_MS }));
+      GameSound.play('meteorBlast');
+    }
+    bombBlasts = bombBlasts.filter(b => clock < b.until);
+    const inBlast = target => bombBlasts.some(b => Math.abs(target.x - b.x) < BOMB_LINE / 2 || Math.abs(target.y - b.y) < BOMB_LINE / 2);
+    if (inBlast(player)) hitPlayer();
+    if (!playing) return;
+    livingAllies().forEach(ally => { if (inBlast(ally)) hitAlly(ally, BOSS_ATTACK); });
+
+    // 연쇄 번개: 표시된 자리에 차례로 내리친다.
+    for (const bolt of bolts) {
+      if (bolt.struck || clock < bolt.at) continue;
+      bolt.struck = true;
+      GameSound.play('laser');
+      hitArea(bolt.x, bolt.y, BOLT_R, BOSS_ATTACK * 0.9);
+      if (!playing) return;
+    }
+    bolts = bolts.filter(bolt => !bolt.struck || clock < bolt.at + 220);
   }
 
   /* 진행 */
@@ -955,16 +1039,22 @@
   function drawMeteorShadows() {
     meteors.forEach(m => {
       const t = clamp((clock - m.start) / (m.at - m.start), 0, 1);
+      const r = m.r || METEOR_R, rock = m.r ? 34 : 12; // 거대 운석은 그림자도 돌도 크다
       ctx.fillStyle = `rgba(226,70,50,${0.12 + t * 0.4})`;
       ctx.beginPath();
-      ctx.arc(m.x, m.y, METEOR_R, 0, Math.PI * 2);
+      ctx.arc(m.x, m.y, r, 0, Math.PI * 2);
       ctx.fill();
+      if (m.r) { // 거대 운석은 테두리로 범위를 또렷하게 보여 준다
+        ctx.strokeStyle = 'rgba(255,120,90,.9)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
       if (t > 0.4) {
         ctx.fillStyle = '#7d6653';
         ctx.strokeStyle = '#2b1a10';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(m.x, m.y - (1 - t) / 0.6 * 170, 12, 0, Math.PI * 2);
+        ctx.arc(m.x, m.y - (1 - t) / 0.6 * 170, rock, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
       }
@@ -1098,7 +1188,7 @@
         const life = clamp((beam.until - clock) / 280, 0, 1);
         ctx.fillStyle = `rgba(255,140,60,${life * 0.7})`;
         ctx.beginPath();
-        ctx.arc(beam.x, beam.y, (beam.small ? 14 : METEOR_R) * (1.2 - life * 0.4), 0, Math.PI * 2);
+        ctx.arc(beam.x, beam.y, (beam.small ? 14 : beam.r || METEOR_R) * (1.2 - life * 0.4), 0, Math.PI * 2);
         ctx.fill();
         return;
       }
@@ -1111,7 +1201,26 @@
     });
   }
   function drawBullets() {
-    bullets.forEach(b => drawStarShape(b.x, b.y, BULLET_R + 3, '#ff8fb0', clock / 120));
+    bullets.forEach(b => {
+      if (!b.r) {
+        drawStarShape(b.x, b.y, BULLET_R + 3, '#ff8fb0', clock / 120);
+        return;
+      }
+      // 튕기는 구슬: 남은 튕김 횟수만큼 고리가 둘러져 있다
+      ctx.fillStyle = '#7ad8ff';
+      ctx.strokeStyle = '#e8f8ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      for (let i = 0; i < b.bounces; i++) {
+        ctx.strokeStyle = 'rgba(122,216,255,.5)';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r + 4 + i * 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    });
   }
   function drawMinions() {
     minions.forEach(m => {
@@ -1254,6 +1363,80 @@
       ctx.restore();
     });
   }
+  function drawBombs() {
+    bombs.forEach(b => {
+      const left = b.at - clock;
+      if (left < BOMB_PREVIEW_MS) { // 터지기 직전에는 터질 줄을 점선으로 보여 준다
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,177,59,.8)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(0, b.y); ctx.lineTo(W, b.y);
+        ctx.moveTo(b.x, 0); ctx.lineTo(b.x, H);
+        ctx.stroke();
+        ctx.restore();
+      }
+      const blink = left < 600 && Math.floor(clock / 80) % 2;
+      ctx.fillStyle = blink ? '#e2202a' : '#2b2f3f';
+      ctx.strokeStyle = '#11131a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#d9a860'; // 심지
+      ctx.beginPath();
+      ctx.moveTo(b.x + 5, b.y - 9);
+      ctx.quadraticCurveTo(b.x + 12, b.y - 16, b.x + 9, b.y - 20);
+      ctx.stroke();
+      drawStarShape(b.x + 9, b.y - 21, 4, Math.floor(clock / 60) % 2 ? '#ffe066' : '#ff8a3d');
+    });
+    bombBlasts.forEach(b => {
+      const life = clamp((b.until - clock) / BOMB_BLAST_MS, 0, 1);
+      ctx.fillStyle = `rgba(255,150,60,${0.35 + life * 0.5})`;
+      ctx.fillRect(0, b.y - BOMB_LINE / 2, W, BOMB_LINE);
+      ctx.fillRect(b.x - BOMB_LINE / 2, 0, BOMB_LINE, H);
+      ctx.fillStyle = `rgba(255,240,200,${life})`;
+      ctx.fillRect(0, b.y - BOMB_LINE / 6, W, BOMB_LINE / 3);
+      ctx.fillRect(b.x - BOMB_LINE / 6, 0, BOMB_LINE / 3, H);
+    });
+  }
+  function drawBolts() {
+    bolts.forEach(bolt => {
+      if (clock < bolt.warnAt) return;
+      if (!bolt.struck) { // 떨어질 자리 표시: 점점 차오르는 노란 원
+        const t = clamp((clock - bolt.warnAt) / (bolt.at - bolt.warnAt), 0, 1);
+        ctx.strokeStyle = 'rgba(255,245,154,.85)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(bolt.x, bolt.y, BOLT_R, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(255,245,154,${t * 0.35})`;
+        ctx.beginPath();
+        ctx.arc(bolt.x, bolt.y, BOLT_R * t, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+      // 내리친 번개: 위에서 지그재그로 떨어진다
+      const life = clamp(1 - (clock - bolt.at) / 220, 0, 1);
+      ctx.strokeStyle = `rgba(255,250,200,${life})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      let x = bolt.x + rand(-14, 14);
+      ctx.moveTo(x, 0);
+      for (let y = 40; y < bolt.y; y += 40) {
+        x = bolt.x + rand(-16, 16);
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(bolt.x, bolt.y);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255,245,154,${life * 0.6})`;
+      ctx.beginPath();
+      ctx.arc(bolt.x, bolt.y, BOLT_R, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
   function draw() {
     drawSpace();
     drawIce();
@@ -1268,6 +1451,8 @@
     drawMinions();
     drawAllies();
     drawPlayer();
+    drawBombs();
+    drawBolts();
     drawBullets();
     drawMissiles();
     drawShots();
@@ -1352,6 +1537,9 @@
     missiles = [];
     clones = [];
     iceZones = [];
+    bombs = [];
+    bombBlasts = [];
+    bolts = [];
     minions = [];
     beams = [];
     floats = [];
