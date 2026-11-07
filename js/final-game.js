@@ -1853,7 +1853,7 @@
     $('finalSumTime').textContent = `${(clock / 1000).toFixed(1)}초`;
     $('finalSumAlive').textContent = `${livingAllies().length}/${allies.length}`;
     $('finalSumMole').textContent = results.mole;
-    $('finalSumBlock').textContent = results.block;
+    $('finalSumMerge').textContent = results.merge;
     $('finalSumRun').textContent = results.run;
     $('finalSumArrow').textContent = results.arrow;
     $('finalSumBoss').textContent = results.boss;

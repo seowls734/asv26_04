@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 화면 뼈대: 두더지 화면과 블록 화면의 HTML을 담고 css/js를 연결한다. -->
+<!-- 화면 뼈대: 일곱 단계 화면의 HTML을 담고 css/js를 연결한다. -->
 <html lang="ko">
 <head>
   <meta charset="utf-8">
@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=202611072110">
+  <link rel="stylesheet" href="css/style.css?v=20261107212340">
 </head>
 <body data-screen="mole">
   <div class="app">
@@ -19,7 +19,7 @@
 
     <ol class="stages" aria-label="진행 단계">
       <li data-stage="mole">1 두더지</li>
-      <li data-stage="block">2 블록</li>
+      <li data-stage="merge">2 합치기</li>
       <li data-stage="run">3 달리기</li>
       <li data-stage="arrow">4 화살</li>
       <li data-stage="boss">5 보스</li>
@@ -51,8 +51,8 @@
           <h2>성공! <span class="mole-goal">100</span>점 달성</h2>
           <p>걸린 시간 <strong id="moleSuccessTime">0초</strong></p>
           <div class="join-card" data-join="normal"></div>
-          <p>잠시 후 보너스 스테이지로 넘어가요</p>
-          <button class="btn" id="moleBonusBtn" type="button">보너스 스테이지로</button>
+          <p>잠시 후 두더지 합치기로 넘어가요</p>
+          <button class="btn" id="moleBonusBtn" type="button">두더지 합치기로</button>
         </div>
 
         <div class="card" id="moleFailCard" hidden>
@@ -78,58 +78,63 @@
       </section>
     </main>
 
-    <!-- 보너스 스테이지: 블록 쌓기 화면 -->
-    <main class="screen" id="blockScreen" hidden>
-      <section class="scoreboard block-board" aria-label="블록 게임 점수판">
-        <div class="stat"><span>블록 점수</span><b><span id="blockScore">0</span>/200</b></div>
-        <div class="stat"><span>지운 줄</span><b id="blockLines">0</b></div>
-        <div class="stat"><span>레벨</span><b id="blockLevel">1</b></div>
-        <div class="stat next"><span>다음 블록</span><canvas id="blockNext" width="96" height="96" role="img" aria-label="다음 블록 미리보기"></canvas></div>
+    <!-- 2단계: 두더지 합치기 화면 -->
+    <main class="screen" id="mergeScreen" hidden>
+      <section class="scoreboard merge-board" aria-label="두더지 합치기 점수판">
+        <div class="stat"><span>점수</span><b id="mergeScore">0</b></div>
+        <div class="stat"><span>가장 큰 두더지</span><b id="mergeTop">아기 두더지</b></div>
+        <div class="stat"><span>최고 기록</span><b id="mergeBest">0</b></div>
+        <div class="stat next"><span>다음</span><canvas id="mergeNext" width="96" height="96" role="img" aria-label="다음 두더지 미리보기"></canvas></div>
       </section>
 
-      <div class="board-wrap">
-        <canvas id="blockCanvas" width="400" height="800" role="img" aria-label="블록 게임판"></canvas>
+      <div class="merge-wrap">
+        <canvas id="mergeCanvas" width="720" height="1040" role="img" aria-label="두더지 합치기 게임판"></canvas>
 
-        <div class="card" id="blockIntroCard">
-          <h2>보너스 스테이지!</h2>
-          <p>200점을 넘으면 다음 스테이지!</p>
+        <div class="card" id="mergeIntroCard">
+          <h2>두더지 왕을 만들면 다음 단계!</h2>
+          <p>같은 두더지끼리 부딪히면 한 단계 위 두더지로 합쳐져요. 왕끼리 합치면 둘 다 사라지고 200점!</p>
+          <ol class="merge-tiers" aria-label="합치는 순서">
+            <li><canvas data-tier="0" width="88" height="88"></canvas><span>아기</span></li>
+            <li><canvas data-tier="1" width="88" height="88"></canvas><span>안전모</span></li>
+            <li><canvas data-tier="2" width="88" height="88"></canvas><span>곡괭이</span></li>
+            <li><canvas data-tier="3" width="88" height="88"></canvas><span>보석</span></li>
+            <li><canvas data-tier="4" width="88" height="88"></canvas><span>장군</span></li>
+            <li><canvas data-tier="5" width="88" height="88"></canvas><span>왕</span></li>
+          </ol>
           <ul class="how-to">
-            <li><kbd>←</kbd> <kbd>→</kbd> 이동</li>
-            <li><kbd>↑</kbd> 또는 <kbd>X</kbd> 회전</li>
-            <li><kbd>↓</kbd> 내리기</li>
-            <li><kbd>Space</kbd> 바로 떨어뜨리기</li>
+            <li>게임판 위에서 움직여 자리를 고르고, 누르거나 떼면 떨어져요</li>
+            <li><kbd>←</kbd> <kbd>→</kbd> 이동 · <kbd>Space</kbd> 또는 <kbd>↓</kbd> 떨어뜨리기</li>
+            <li>한 번 떨어뜨리면 1.5초 뒤에 다음 두더지를 떨어뜨릴 수 있어요</li>
+            <li>두더지가 점선 위로 넘친 채 1.5초가 지나면 끝나요</li>
           </ul>
-          <button class="btn" id="blockStartBtn" type="button">블록 쌓기 시작</button>
-          <button class="btn ghost" id="blockBackBtn" type="button">두더지로 돌아가기</button>
+          <button class="btn" id="mergeStartBtn" type="button">합치기 시작</button>
+          <button class="btn ghost" id="mergeBackBtn" type="button">두더지로 돌아가기</button>
         </div>
 
-        <div class="card" id="blockSuccessCard" hidden>
-          <h2>성공! 블록 200점 달성</h2>
-          <p>지운 줄 <strong id="blockSuccessLines">0</strong>줄</p>
+        <div class="card" id="mergeSuccessCard" hidden>
+          <h2>성공! 두더지 왕 탄생</h2>
+          <p>점수 <strong id="mergeSuccessScore">0</strong> · 걸린 시간 <strong id="mergeSuccessTime">0초</strong></p>
           <div class="join-card" data-join="shield"></div>
           <p>잠시 후 두더지 달리기로 넘어가요</p>
-          <button class="btn" id="blockNextBtn" type="button">달리기로</button>
+          <button class="btn" id="mergeNextBtn" type="button">달리기로</button>
         </div>
 
-        <div class="card" id="blockOverCard" hidden>
-          <h2>게임 오버</h2>
+        <div class="card" id="mergeOverCard" hidden>
+          <h2>두더지가 넘쳤어요</h2>
           <dl class="result stacked">
-            <div><dt>점수</dt><dd id="blockFinalScore">0</dd></div>
-            <div><dt>지운 줄</dt><dd id="blockFinalLines">0</dd></div>
-            <div><dt>레벨</dt><dd id="blockFinalLevel">1</dd></div>
-            <div><dt>블록 최고 기록</dt><dd id="blockBest">0</dd></div>
+            <div><dt>점수</dt><dd id="mergeFinalScore">0</dd></div>
+            <div><dt>가장 큰 두더지</dt><dd id="mergeFinalTop">아기 두더지</dd></div>
+            <div><dt>합치기 최고 기록</dt><dd id="mergeFinalBest">0</dd></div>
           </dl>
-          <button class="btn" id="blockRetryBtn" type="button">다시 쌓기</button>
-          <button class="btn ghost" id="blockOverBackBtn" type="button">두더지로 돌아가기</button>
+          <button class="btn" id="mergeRetryBtn" type="button">다시 합치기</button>
+          <button class="btn ghost" id="mergeOverBackBtn" type="button">두더지로 돌아가기</button>
         </div>
       </div>
 
-      <div class="pad" id="blockPad">
+      <div class="pad three" id="mergePad">
         <button type="button" tabindex="-1" data-act="left" aria-label="왼쪽으로 이동">←</button>
-        <button type="button" tabindex="-1" data-act="rotate">회전</button>
+        <button type="button" tabindex="-1" data-act="drop">떨어뜨리기</button>
         <button type="button" tabindex="-1" data-act="right" aria-label="오른쪽으로 이동">→</button>
-        <button type="button" tabindex="-1" data-act="soft" aria-label="아래로 내리기">↓</button>
-        <button type="button" tabindex="-1" data-act="drop">바로<br>떨어뜨리기</button>
       </div>
     </main>
 
@@ -259,7 +264,7 @@
             <li><canvas class="item-icon" data-item="shield" width="56" height="56"></canvas><span><b>방패</b> 주우면 잠시 무적이 돼요</span></li>
             <li><canvas class="item-icon" data-item="heart" width="56" height="56"></canvas><span><b>하트</b> 먹으면 하트 +1</span></li>
           </ul>
-          <p class="note"><strong id="bossDamageText">칼 30 · 화살 15(10발) · 맨손 5 · 방패는 3초 동안 모든 공격을 막아줘요</strong></p>
+          <p class="note"><strong id="bossDamageText">칼 35 · 화살 15(10발) · 맨손 5 · 방패는 3초 동안 모든 공격을 막아줘요</strong></p>
           <p class="note">무기는 마지막에 주운 것으로 바뀌어요.</p>
           <p class="note">보스가 초록빛으로 회복할 때 때리면 끊을 수 있어요</p>
           <div class="card-actions">
@@ -393,7 +398,7 @@
             <div><dt>걸린 시간</dt><dd id="finalSumTime">0초</dd></div>
             <div><dt>살아남은 동료</dt><dd id="finalSumAlive">0</dd></div>
             <div><dt>두더지 점수</dt><dd id="finalSumMole">0</dd></div>
-            <div><dt>블록 점수</dt><dd id="finalSumBlock">0</dd></div>
+            <div><dt>합치기 점수</dt><dd id="finalSumMerge">0</dd></div>
             <div><dt>달리기 점수</dt><dd id="finalSumRun">0</dd></div>
             <div><dt>피한 화살</dt><dd id="finalSumArrow">0</dd></div>
             <div><dt>보스전 시간</dt><dd id="finalSumBoss">0초</dd></div>
@@ -427,15 +432,15 @@
     </main>
   </div>
 
-  <script src="js/sound.js?v=202611072110"></script>
-  <script src="js/party.js?v=202611072110"></script>
-  <script src="js/mole-game.js?v=202611072110"></script>
-  <script src="js/block-game.js?v=202611072110"></script>
-  <script src="js/run-game.js?v=202611072110"></script>
-  <script src="js/arrow-game.js?v=202611072110"></script>
-  <script src="js/boss-game.js?v=202611072110"></script>
-  <script src="js/space-game.js?v=202611072110"></script>
-  <script src="js/final-game.js?v=202611072110"></script>
-  <script src="js/main.js?v=202611072110"></script>
+  <script src="js/sound.js?v=20261107212340"></script>
+  <script src="js/party.js?v=20261107212340"></script>
+  <script src="js/mole-game.js?v=20261107212340"></script>
+  <script src="js/merge-game.js?v=20261107212340"></script>
+  <script src="js/run-game.js?v=20261107212340"></script>
+  <script src="js/arrow-game.js?v=20261107212340"></script>
+  <script src="js/boss-game.js?v=20261107212340"></script>
+  <script src="js/space-game.js?v=20261107212340"></script>
+  <script src="js/final-game.js?v=20261107212340"></script>
+  <script src="js/main.js?v=20261107212340"></script>
 </body>
 </html>

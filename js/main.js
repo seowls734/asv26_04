@@ -1,8 +1,8 @@
 // 화면 전환과 키보드 입력 연결: 일곱 단계를 이어 주고, 키 입력은 지금 켜진 게임에만 전달한다.
 (function () {
   const $ = id => document.getElementById(id);
-  const SCREENS = ['mole', 'block', 'run', 'arrow', 'boss', 'space', 'final'];
-  const results = { mole: 0, block: 0, run: 0, arrow: 0, boss: '', space: 0 };
+  const SCREENS = ['mole', 'merge', 'run', 'arrow', 'boss', 'space', 'final'];
+  const results = { mole: 0, merge: 0, run: 0, arrow: 0, boss: '', space: 0 };
   let activeGame = MoleGame;
 
   function setScreen(name) {
@@ -16,7 +16,7 @@
   }
   function stopAll() {
     MoleGame.stop();
-    BlockGame.stop();
+    MergeGame.stop();
     RunGame.stop();
     ArrowGame.stop();
     BossGame.stop();
@@ -31,11 +31,11 @@
     setScreen('mole');
     MoleGame.showStart();
   }
-  function showBlockScreen() {
+  function showMergeScreen() {
     stopAll();
-    activeGame = BlockGame;
-    setScreen('block');
-    BlockGame.showIntro();
+    activeGame = MergeGame;
+    setScreen('merge');
+    MergeGame.showIntro();
   }
   function showRunScreen() {
     stopAll();
@@ -97,13 +97,13 @@
   MoleGame.init({
     onSuccess(score) {
       results.mole = score;
-      showBlockScreen();
+      showMergeScreen();
     },
   });
-  BlockGame.init({
+  MergeGame.init({
     onBack: showMoleScreen,
     onSuccess(score) {
-      results.block = score;
+      results.merge = score;
       showRunScreen();
     },
   });

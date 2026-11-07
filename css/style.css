@@ -1,4 +1,4 @@
-/* 전체 스타일: 1단계는 낮의 잔디밭, 2단계는 땅속, 3단계는 맑은 들판, 4단계는 해 질 녘 하늘, 5단계는 밤의 숲, 6·7단계는 우주로 꾸민다. */
+/* 전체 스타일: 1단계는 낮의 잔디밭, 2단계는 땅속 합치기 상자, 3단계는 맑은 들판, 4단계는 해 질 녘 하늘, 5단계는 밤의 숲, 6·7단계는 우주로 꾸민다. */
 :root {
   color-scheme: light;
   --sky: #bfe6f5;
@@ -16,7 +16,7 @@
   --display: "Black Han Sans", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   --body: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
 }
-body[data-screen="block"] {
+body[data-screen="merge"] {
   --page-bg: #4a2f1c;
   --page-ink: var(--paper);
 }
@@ -372,18 +372,26 @@ kbd {
 .rule-icon { width: 40px; height: 40px; overflow: hidden; background: var(--grass); border-radius: 50%; }
 .rule-icon svg { margin-top: 4px; }
 
-/* 블록 화면 */
-.block-board { align-items: center; }
+/* 두더지 합치기 화면 */
+.merge-board { align-items: center; }
+.merge-board .stat b { font-size: clamp(13px, 3.6vw, 18px); }
 .stat.next canvas { display: block; width: 44px; height: 44px; background: var(--soil-deep); border-radius: 4px; }
-.board-wrap {
+.merge-wrap {
   position: relative;
-  width: min(100%, 340px, max(190px, calc((100dvh - 320px) / 2)));
+  width: min(100%, 360px, max(200px, calc((100dvh - 300px) * 360 / 520)));
   margin-inline: auto;
   overflow: hidden;
   border: 3px solid var(--soil-deep);
-  border-radius: 6px;
+  border-radius: 8px;
 }
-#blockCanvas { display: block; width: 100%; height: auto; background: var(--soil-deep); }
+#mergeCanvas { display: block; width: 100%; height: auto; background: var(--soil-deep); touch-action: none; }
+.merge-wrap .card { overflow-x: hidden; }
+.merge-tiers { margin: 0; padding: 0; list-style: none; display: flex; justify-content: center; gap: 2px; }
+.merge-tiers li { display: grid; justify-items: center; gap: 2px; font-size: 10px; font-weight: 700; }
+.merge-tiers canvas { width: 36px; height: 36px; }
+.pad.three { grid-template-columns: 1fr 2fr 1fr; }
+.pad.three button { font-size: 18px; }
+.pad.three button[data-act="drop"] { font-size: 15px; color: #fff; background: var(--tomato); box-shadow: 0 3px 0 var(--tomato-dark); }
 .pad {
   width: min(100%, 420px);
   margin-inline: auto;
@@ -408,8 +416,6 @@ kbd {
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
-.pad button[data-act="left"], .pad button[data-act="right"], .pad button[data-act="soft"] { font-size: 22px; }
-.pad button[data-act="drop"] { font-size: 11px; color: #fff; background: var(--tomato); box-shadow: 0 3px 0 var(--tomato-dark); }
 .pad button:active { transform: translateY(2px); box-shadow: 0 1px 0 #94784a; }
 .pad.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pad.two button { font-size: 24px; }
