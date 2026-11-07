@@ -3,7 +3,7 @@
 (function () {
   const AUTO_NEXT_MS = 3500;
   const SWORD_DMG = 40, ARROW_DMG = 15, HAND_DMG = 5; // 보스와 부하 모두에게 같은 데미지. 안내 카드 문구도 함께 바뀐다.
-  const SHIELD_TIME = 4; // 방패 지속 시간(초). 안내 카드 문구도 함께 바뀐다.
+  const SHIELD_TIME = 3; // 방패 지속 시간(초). 안내 카드 문구도 함께 바뀐다.
   const SHIELD_WARN_MS = 2000, SHIELD_BLINK_MS = 120; // 끝나기 전에 방패 고리가 깜빡이는 구간
   const BOSS_MAX_HP = 1000, RAGE_HP = 500;
   const W = 400, H = 480; // 그리기와 계산에 쓰는 논리 크기

@@ -10,8 +10,8 @@
   const STONE_SPEED = 340, ARROW_SPEED = 430, WAVE_SPEED = 300, FAN_ANGLE = 0.24;
   const BIG_WAVE_DMG = 70, BIG_LASER_DMG = 170;
   // 보스
-  const BOSS_MAX_HP = 3000, BOSS_ATTACK = 80, BOSS_R = 44, BOSS_TOP = 60, BOSS_BOTTOM = 250;
-  const BOSS_SPEED = 30, RAGE_BELOW_HP = 1500, RAGE_SPEED = 1.6, RAGE_GAP = 0.7;
+  const BOSS_MAX_HP = 4000, BOSS_ATTACK = 80, BOSS_R = 44, BOSS_TOP = 60, BOSS_BOTTOM = 250;
+  const BOSS_SPEED = 30, RAGE_BELOW_HP = 2000, RAGE_SPEED = 1.6, RAGE_GAP = 0.7;
   const SKILL_GAP_MIN_MS = 2300, SKILL_GAP_MAX_MS = 3300;
   const STAR_BULLETS = 12, RAGE_STAR_BULLETS = 18, BULLET_SPEED = 135, BULLET_R = 6;
   const METEOR_COUNT = 5, METEOR_R = 30, METEOR_FALL_MS = 1000;
@@ -21,10 +21,15 @@
   const BARRIER_MS = 2500, TELEPORT_MS = 600;
   const MINION_HP = 20, MINION_R = 13, MINION_SPEED = 55, MINION_MAX = 8;
   const HEAL_MS = 2500, HEAL_PER_SEC = 100, HEAL_BREAK_DAMAGE = 150, HEAL_COOLDOWN_MS = 15000;
+  const SPIRAL_MS = 1800, SPIRAL_EVERY_MS = 90, SPIRAL_TURN = 0.42, SPIRAL_SPEED = 150;
+  const QUAKE_WARN_MS = 800, QUAKE_SPEED = 230, QUAKE_MAX_R = 270, QUAKE_THICK = 12;
+  const CROSS_WARN_MS = 900, CROSS_MS = 550, CROSS_WIDTH = 26, CROSS_SPIN = 0.9;
+  const RAIN_GAP = 30, RAIN_SAFE = 3, RAIN_SPEED = 170, RAIN_ROW_MS = 650;
   // 기술 이름과 뽑힐 가중치. 지금 쓸 수 없는 기술은 canUse에서 걸러진다.
   const BOSS_SKILLS = [
-    ['barrage', 24], ['meteors', 16], ['beam', 14], ['dash', 14], ['blackhole', 8],
+    ['barrage', 20], ['meteors', 14], ['beam', 12], ['dash', 12], ['blackhole', 8],
     ['barrier', 7], ['teleport', 8], ['summon', 8], ['heal', 8],
+    ['spiral', 12], ['quake', 10], ['cross', 10], ['starRain', 10],
   ];
   const W = 400, H = 520; // 그리기와 계산에 쓰는 논리 크기
   const MOVE_KEYS = {
@@ -40,7 +45,7 @@
 
   let playing = false;
   let frameId = 0, lastFrame = 0, clock = 0;
-  let player, boss, allies, trail, shots, bullets, meteors, minions, beams, floats, hole, stars;
+  let player, boss, allies, trail, shots, bullets, meteors, minions, beams, floats, hole, stars, quakes;
   let hearts = MAX_HEARTS, invincibleUntil = 0, hurtUntil = 0;
   let nextStarAt = 0, hammerReadyAt = 0, guardUntil = 0, healReadyAt = 0, chipsText = '';
   let moves = { up: false, down: false, left: false, right: false };
@@ -266,6 +271,7 @@
     if (name === 'summon') return minions.length < MINION_MAX;
     if (name === 'heal') return boss.hp < BOSS_MAX_HP && clock >= healReadyAt;
     if (name === 'meteors') return !meteors.length;
+    if (name === 'quake') return !quakes.length;
     return true;
   }
   function chooseSkill() {
@@ -370,7 +376,49 @@
       boss.healTaken = 0;
       GameSound.play('bossRecover');
     },
+    // 나선 탄막: 제자리에서 돌며 별 탄을 줄줄이 뿌린다. 분노하면 팔이 셋.
+    spiral() {
+      boss.state = 'spiral';
+      boss.until = clock + SPIRAL_MS;
+      boss.nextShot = clock;
+      boss.spin = rand(0, Math.PI * 2);
+      addFloat(boss.x, boss.y - BOSS_R - 28, '나선 탄막!', '#ff8fb0');
+    },
+    // 지진파: 잠깐 웅크렸다가 퍼져 나가는 고리를 낸다. 멀리 떨어지면 피할 수 있다.
+    quake() {
+      boss.state = 'quakeWarn';
+      boss.until = clock + QUAKE_WARN_MS;
+      boss.warnStart = clock;
+    },
+    // 십자 레이저: 네 방향으로 레이저를 쏜다. 분노하면 쏘는 동안 돌아간다.
+    cross() {
+      boss.state = 'crossWarn';
+      boss.until = clock + CROSS_WARN_MS;
+      boss.crossAngle = rand(0, Math.PI / 2);
+    },
+    // 별똥별 비: 위에서 별 탄이 줄지어 떨어진다. 줄마다 빈틈이 하나 있다.
+    starRain() {
+      boss.state = 'starRain';
+      boss.rowsLeft = raging() ? 3 : 2;
+      boss.nextShot = clock;
+      addFloat(boss.x, boss.y - BOSS_R - 28, '별똥별 비!', '#ffe066');
+    },
   };
+  function crossDirs() {
+    return [0, 1, 2, 3].map(i => {
+      const angle = boss.crossAngle + i * Math.PI / 2;
+      return { x: Math.cos(angle), y: Math.sin(angle) };
+    });
+  }
+  function spawnRainRow() {
+    const columns = Math.floor(W / RAIN_GAP);
+    const safe = Math.floor(rand(0, columns - RAIN_SAFE + 1));
+    for (let i = 0; i < columns; i++) {
+      if (i >= safe && i < safe + RAIN_SAFE) continue;
+      bullets.push({ x: RAIN_GAP / 2 + i * RAIN_GAP, y: -6, vx: 0, vy: RAIN_SPEED * (raging() ? 1.2 : 1) });
+    }
+    GameSound.play('bossStar');
+  }
   function moveBoss(dx, dy, sec) {
     boss.x = clamp(boss.x + dx * sec, BOSS_R, W - BOSS_R);
     boss.y = clamp(boss.y + dy * sec, BOSS_R, H - BOSS_R);
@@ -393,11 +441,7 @@
         GameSound.play('bossBeam');
       }
     } else if (boss.state === 'beam') {
-      const hitByBeam = target => {
-        const px = target.x - boss.x, py = target.y - boss.y;
-        const along = px * boss.beamX + py * boss.beamY;
-        return along > 0 && Math.abs(px * boss.beamY - py * boss.beamX) < BEAM_WIDTH / 2;
-      };
+      const hitByBeam = target => onRay(target, { x: boss.beamX, y: boss.beamY }, BEAM_WIDTH);
       if (hitByBeam(player)) hitPlayer();
       if (!playing) return;
       livingAllies().forEach(ally => { if (hitByBeam(ally)) hitAlly(ally, BOSS_ATTACK * 1.2); });
@@ -426,8 +470,56 @@
         addFloat(boss.x + rand(-20, 20), boss.y - BOSS_R - 8, `+${HEAL_PER_SEC / 2}`, '#8dffa0');
       }
       if (clock >= boss.until) endHeal();
+    } else if (boss.state === 'spiral') {
+      const arms = raging() ? 3 : 2;
+      while (clock >= boss.nextShot && boss.nextShot < boss.until) {
+        boss.nextShot += SPIRAL_EVERY_MS;
+        boss.spin += SPIRAL_TURN;
+        const speed = SPIRAL_SPEED * (raging() ? 1.2 : 1);
+        for (let i = 0; i < arms; i++) {
+          const angle = boss.spin + i / arms * Math.PI * 2;
+          bullets.push({ x: boss.x, y: boss.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed });
+        }
+      }
+      if (Math.floor(clock / 360) !== Math.floor((clock - sec * 1000) / 360)) GameSound.play('bossStar');
+      if (clock >= boss.until) endSkill();
+    } else if (boss.state === 'quakeWarn') {
+      if (clock >= boss.until) {
+        quakes.push({ x: boss.x, y: boss.y, start: clock });
+        if (raging()) quakes.push({ x: boss.x, y: boss.y, start: clock + 450 }); // 분노하면 두 번 퍼진다
+        GameSound.play('meteorBlast');
+        endSkill();
+      }
+    } else if (boss.state === 'crossWarn') {
+      if (clock >= boss.until) {
+        boss.state = 'cross';
+        boss.until = clock + CROSS_MS;
+        GameSound.play('bossBeam');
+      }
+    } else if (boss.state === 'cross') {
+      if (raging()) boss.crossAngle += CROSS_SPIN * sec;
+      const dirs = crossDirs();
+      const hitByCross = target => dirs.some(dir => onRay(target, dir, CROSS_WIDTH));
+      if (hitByCross(player)) hitPlayer();
+      if (!playing) return;
+      livingAllies().forEach(ally => { if (hitByCross(ally)) hitAlly(ally, BOSS_ATTACK); });
+      if (clock >= boss.until) endSkill();
+    } else if (boss.state === 'starRain') {
+      if (clock >= boss.nextShot) {
+        spawnRainRow();
+        boss.rowsLeft--;
+        boss.nextShot = clock + RAIN_ROW_MS;
+        if (boss.rowsLeft <= 0) endSkill();
+      }
     }
   }
+  // 보스에서 dir 방향으로 뻗는 굵기 width의 광선에 닿았는지
+  function onRay(target, dir, width) {
+    const px = target.x - boss.x, py = target.y - boss.y;
+    const along = px * dir.x + py * dir.y;
+    return along > 0 && Math.abs(px * dir.y - py * dir.x) < width / 2;
+  }
+  function quakeRadius(q) { return (clock - q.start) / 1000 * QUAKE_SPEED; }
   function updateHazards(sec) {
     bullets = bullets.filter(b => {
       b.x += b.vx * sec;
@@ -480,6 +572,17 @@
       livingAllies().forEach(pull);
       hitArea(hole.x, hole.y, HOLE_R, BOSS_ATTACK * 0.6);
       if (clock >= hole.until) hole = null;
+    }
+    if (!playing) return;
+
+    quakes = quakes.filter(q => quakeRadius(q) < QUAKE_MAX_R);
+    for (const q of quakes) {
+      const r = quakeRadius(q);
+      if (r <= 0) continue;
+      const onRing = target => Math.abs(Math.hypot(target.x - q.x, target.y - q.y) - r) < QUAKE_THICK;
+      if (onRing(player)) hitPlayer();
+      if (!playing) return;
+      livingAllies().forEach(ally => { if (onRing(ally)) hitAlly(ally, BOSS_ATTACK * 0.8); });
     }
   }
 
@@ -558,8 +661,9 @@
       return;
     }
     const flash = clock < boss.flashUntil;
-    const warn = boss.state === 'dashWarn' && Math.floor(clock / 90) % 2 === 0;
-    const paint = color => (flash ? '#ffffff' : warn ? '#e2202a' : color);
+    const warnColor = { dashWarn: '#e2202a', quakeWarn: '#ff9a2e' }[boss.state];
+    const warn = warnColor && Math.floor(clock / 90) % 2 === 0;
+    const paint = color => (flash ? '#ffffff' : warn ? warnColor : color);
     const fur = raging() ? '#8c2f8f' : '#6d3fb0';
     ctx.save();
     ctx.translate(boss.x, boss.y);
@@ -654,6 +758,53 @@
       ctx.stroke();
     }
     ctx.restore();
+  }
+  function drawCrossSkill() {
+    if (boss.state !== 'crossWarn' && boss.state !== 'cross') return;
+    const far = 700;
+    ctx.save();
+    crossDirs().forEach(dir => {
+      ctx.beginPath();
+      ctx.moveTo(boss.x, boss.y);
+      ctx.lineTo(boss.x + dir.x * far, boss.y + dir.y * far);
+      if (boss.state === 'crossWarn') {
+        ctx.strokeStyle = '#ffb13b';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([9, 7]);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = 'rgba(255,170,60,.9)';
+        ctx.lineWidth = CROSS_WIDTH;
+        ctx.stroke();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = CROSS_WIDTH * 0.35;
+        ctx.stroke();
+      }
+    });
+    ctx.restore();
+  }
+  function drawQuakes() {
+    if (boss.state === 'quakeWarn') { // 고리가 퍼질 곳을 미리 보여 준다
+      const t = clamp((clock - boss.warnStart) / QUAKE_WARN_MS, 0, 1);
+      ctx.strokeStyle = `rgba(255,154,46,${0.25 + t * 0.5})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(boss.x, boss.y, BOSS_R + 6 + (1 - t) * 40, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    quakes.forEach(q => {
+      const r = quakeRadius(q);
+      if (r <= 0) return;
+      const life = 1 - r / QUAKE_MAX_R;
+      ctx.strokeStyle = `rgba(255,154,46,${0.35 + life * 0.6})`;
+      ctx.lineWidth = QUAKE_THICK * 1.6;
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,240,200,${life})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    });
   }
   function drawHole() {
     if (!hole) return;
@@ -848,6 +999,8 @@
     drawHole();
     drawMeteorShadows();
     drawBeamSkill();
+    drawCrossSkill();
+    drawQuakes();
     drawBoss();
     drawMinions();
     drawAllies();
@@ -912,6 +1065,7 @@
     boss = {
       x: W / 2, y: 110, hp: BOSS_MAX_HP, state: 'roam', until: 0, nextSkill: 1500,
       flashUntil: 0, barrierUntil: 0, healTaken: 0, beamX: 0, beamY: 1, vx: 0, vy: 0,
+      nextShot: 0, spin: 0, warnStart: 0, crossAngle: 0, rowsLeft: 0,
     };
     allies = Party.members().map((def, i) => ({
       def,
@@ -930,6 +1084,7 @@
     shots = [];
     bullets = [];
     meteors = [];
+    quakes = [];
     minions = [];
     beams = [];
     floats = [];
