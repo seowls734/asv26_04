@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=202611072126">
+  <link rel="stylesheet" href="css/style.css?v=202611072131">
 </head>
 <body data-screen="mole">
   <div class="app">
@@ -102,9 +102,8 @@
             <li><canvas data-tier="5" width="88" height="88"></canvas><span>왕</span></li>
           </ol>
           <ul class="how-to">
-            <li>게임판 위에서 움직여 자리를 고르고, 누르거나 떼면 떨어져요</li>
-            <li><kbd>←</kbd> <kbd>→</kbd> 이동 · <kbd>Space</kbd> 또는 <kbd>↓</kbd> 떨어뜨리기</li>
-            <li>한 번 떨어뜨리면 0.7초 뒤에 다음 두더지를 떨어뜨릴 수 있어요</li>
+            <li>두더지는 0.7초마다 저절로 떨어져요. 떨어질 자리만 골라 주세요</li>
+            <li><kbd>←</kbd> <kbd>→</kbd> 또는 <kbd>A</kbd> <kbd>D</kbd>로 이동 · 게임판 위에서 마우스나 손가락을 움직여도 돼요</li>
             <li>두더지가 점선 위로 넘친 채 1.5초가 지나면 끝나요</li>
           </ul>
           <button class="btn" id="mergeStartBtn" type="button">합치기 시작</button>
@@ -131,9 +130,8 @@
         </div>
       </div>
 
-      <div class="pad three" id="mergePad">
+      <div class="pad two" id="mergePad">
         <button type="button" tabindex="-1" data-act="left" aria-label="왼쪽으로 이동">←</button>
-        <button type="button" tabindex="-1" data-act="drop">떨어뜨리기</button>
         <button type="button" tabindex="-1" data-act="right" aria-label="오른쪽으로 이동">→</button>
       </div>
     </main>
@@ -432,15 +430,15 @@
     </main>
   </div>
 
-  <script src="js/sound.js?v=202611072126"></script>
-  <script src="js/party.js?v=202611072126"></script>
-  <script src="js/mole-game.js?v=202611072126"></script>
-  <script src="js/merge-game.js?v=202611072126"></script>
-  <script src="js/run-game.js?v=202611072126"></script>
-  <script src="js/arrow-game.js?v=202611072126"></script>
-  <script src="js/boss-game.js?v=202611072126"></script>
-  <script src="js/space-game.js?v=202611072126"></script>
-  <script src="js/final-game.js?v=202611072126"></script>
-  <script src="js/main.js?v=202611072126"></script>
+  <script src="js/sound.js?v=202611072131"></script>
+  <script src="js/party.js?v=202611072131"></script>
+  <script src="js/mole-game.js?v=202611072131"></script>
+  <script src="js/merge-game.js?v=202611072131"></script>
+  <script src="js/run-game.js?v=202611072131"></script>
+  <script src="js/arrow-game.js?v=202611072131"></script>
+  <script src="js/boss-game.js?v=202611072131"></script>
+  <script src="js/space-game.js?v=202611072131"></script>
+  <script src="js/final-game.js?v=202611072131"></script>
+  <script src="js/main.js?v=202611072131"></script>
 </body>
 </html>

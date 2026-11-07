@@ -4,7 +4,7 @@
   const AUTO_NEXT_MS = 3500;
   const W = 360, H = 520; // 그리기와 계산에 쓰는 논리 크기
   const DROP_Y = 46, DANGER_Y = 92; // 떨어뜨리는 높이와 넘치면 안 되는 선
-  const DROP_COOLDOWN_MS = 700, MOVE_SPEED = 260; // 한 번 떨어뜨리면 0.7초 뒤에 다음 두더지를 떨어뜨릴 수 있다
+  const DROP_EVERY_MS = 700, FIRST_DROP_MS = 1000, MOVE_SPEED = 260; // 두더지는 0.7초마다 저절로 떨어진다. 나는 자리만 고른다.
   const GRAVITY = 1100, SUBSTEPS = 6, BOUNCE = 0.12, FRICTION = 0.995;
   const OVER_MS = 1500, SETTLE_MS = 900; // 선을 넘은 채로 이만큼 있으면 끝난다. 막 떨어진 두더지는 봐준다.
   const WIN_DELAY_MS = 1100; // 두더지 왕이 나타난 걸 잠깐 보여 준 뒤 성공 카드를 띄운다
@@ -22,7 +22,6 @@
   const KINGS_TO_WIN = 1; // 두더지 왕을 이만큼 만들면 성공. 이 숫자만 바꾸면 점수판과 카드 문구도 함께 바뀐다.
   const DROP_WEIGHTS = [7, 3]; // 떨어뜨릴 수 있는 건 아기와 안전모 두더지뿐
   const MOVE_KEYS = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 };
-  const DROP_KEYS = ['Space', 'ArrowDown', 'KeyS'];
   const STORE_KEY = 'dudeoji-merge-best';
 
   const $ = id => document.getElementById(id);
@@ -58,7 +57,7 @@
     moles.push({ tier: current, x: clamp(dropX, r, W - r), y: DROP_Y, vx: 0, vy: 0, born: clock, gone: false });
     current = next;
     next = pickDrop();
-    readyAt = clock + DROP_COOLDOWN_MS;
+    readyAt = clock + DROP_EVERY_MS;
     GameSound.play('mergeDrop');
     renderStats();
   }
@@ -143,6 +142,7 @@
   function update(sec) {
     const dir = padDir || keyDir;
     if (dir) dropX = clamp(dropX + dir * MOVE_SPEED * sec, 0, W);
+    if (clock >= readyAt) drop(); // 시간이 되면 지금 고른 자리에 저절로 떨어진다
     for (let i = 0; i < SUBSTEPS; i++) step(sec / SUBSTEPS);
     pops = pops.filter(p => clock < p.until);
 
@@ -377,7 +377,8 @@
     ctx.moveTo(x, DROP_Y);
     ctx.lineTo(x, H);
     ctx.stroke();
-    drawMole(ctx, x, DROP_Y, current, clock < readyAt ? 0.45 : 1);
+    // 떨어질 때가 가까울수록 진해진다
+    drawMole(ctx, x, DROP_Y, current, 0.45 + 0.55 * clamp(1 - (readyAt - clock) / DROP_EVERY_MS, 0, 1));
   }
   function drawPops() {
     pops.forEach(p => {
@@ -439,7 +440,7 @@
     dropX = W / 2;
     current = pickDrop();
     next = pickDrop();
-    readyAt = 0;
+    readyAt = FIRST_DROP_MS; // 처음 하나는 자리를 고를 시간을 조금 더 준다
     score = 0;
     topTier = 0;
     kingsMade = 0;
@@ -511,23 +512,16 @@
       e.preventDefault();
       dropX = clamp(toLogicalX(e), 0, W);
     });
-    canvas.addEventListener('pointerup', e => {
-      if (!playing) return;
-      dropX = clamp(toLogicalX(e), 0, W);
-      drop();
-    });
   }
   function bindPad() {
     document.querySelectorAll('#mergePad button').forEach(btn => {
-      const act = btn.dataset.act;
+      const dir = btn.dataset.act === 'left' ? -1 : 1;
       btn.addEventListener('pointerdown', e => {
         e.preventDefault();
-        if (!playing) return;
-        if (act === 'drop') drop();
-        else padDir = act === 'left' ? -1 : 1;
+        if (playing) padDir = dir;
       });
       ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => btn.addEventListener(type, () => {
-        if (act !== 'drop') padDir = 0;
+        if (padDir === dir) padDir = 0;
       }));
       btn.addEventListener('contextmenu', e => e.preventDefault());
     });
@@ -567,9 +561,8 @@
     // main.js가 넘겨주는 키 입력. 처리했으면 true를 돌려준다.
     handleKey(e) {
       if (!playing) return false;
-      if (MOVE_KEYS[e.code]) keyDir = MOVE_KEYS[e.code];
-      else if (DROP_KEYS.includes(e.code)) { if (!e.repeat) drop(); }
-      else return false;
+      if (!MOVE_KEYS[e.code]) return false;
+      keyDir = MOVE_KEYS[e.code];
       return true;
     },
     handleKeyUp(e) {

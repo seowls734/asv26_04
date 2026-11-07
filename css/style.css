@@ -389,9 +389,6 @@ kbd {
 .merge-tiers { margin: 0; padding: 0; list-style: none; display: flex; justify-content: center; gap: 2px; }
 .merge-tiers li { display: grid; justify-items: center; gap: 2px; font-size: 10px; font-weight: 700; }
 .merge-tiers canvas { width: 36px; height: 36px; }
-.pad.three { grid-template-columns: 1fr 2fr 1fr; }
-.pad.three button { font-size: 18px; }
-.pad.three button[data-act="drop"] { font-size: 15px; color: #fff; background: var(--tomato); box-shadow: 0 3px 0 var(--tomato-dark); }
 .pad {
   width: min(100%, 420px);
   margin-inline: auto;
