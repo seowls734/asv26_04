@@ -1,5 +1,5 @@
 // 두더지 합치기(2단계): 위에서 두더지를 떨어뜨려 같은 두더지끼리 부딪히면 한 단계 위 두더지로 합쳐진다.
-// 아기 → 안전모 → 곡괭이 → 보석 → 장군 → 두더지 왕. 두더지 왕을 KINGS_TO_WIN번 만들면 main.js가 넘겨준 onSuccess로 다음 단계에 넘어간다.
+// 아기 → 안전모 → 곡괭이 → 보석 → 두더지 왕. 두더지 왕을 KINGS_TO_WIN번 만들면 main.js가 넘겨준 onSuccess로 다음 단계에 넘어간다.
 (function () {
   const AUTO_NEXT_MS = 3500;
   const W = 360, H = 520; // 그리기와 계산에 쓰는 논리 크기
@@ -13,11 +13,10 @@
     { name: '아기 두더지', r: 18, fur: '#c99566', points: 0 },
     { name: '안전모 두더지', r: 26, fur: '#9a6640', points: 10 },
     { name: '곡괭이 두더지', r: 36, fur: '#86552f', points: 20 },
-    { name: '보석 두더지', r: 47, fur: '#744826', points: 40 },
-    { name: '장군 두더지', r: 59, fur: '#6b4223', points: 70 },
-    { name: '두더지 왕', r: 72, fur: '#633c1f', points: 120 },
+    { name: '보석 두더지', r: 48, fur: '#744826', points: 40 },
+    { name: '두더지 왕', r: 64, fur: '#633c1f', points: 100 },
   ];
-  const GENERAL = TIERS.length - 2, KING = TIERS.length - 1;
+  const KING = TIERS.length - 1;
   const KING_PAIR_POINTS = 200; // 왕끼리 합치면 둘 다 사라지며 큰 점수
   const KINGS_TO_WIN = 1; // 두더지 왕을 이만큼 만들면 성공. 이 숫자만 바꾸면 점수판과 카드 문구도 함께 바뀐다.
   const DROP_WEIGHTS = [7, 3]; // 떨어뜨릴 수 있는 건 아기와 안전모 두더지뿐
@@ -289,36 +288,6 @@
       c.beginPath();
       c.moveTo(13 * s, -30 * s); c.lineTo(13 * s, -22 * s);
       c.moveTo(9 * s, -26 * s); c.lineTo(17 * s, -26 * s);
-      c.stroke();
-    } else if (tier === GENERAL) { // 장군: 붉은 술이 달린 쇠 투구와 굳게 다문 눈썹
-      c.fillStyle = '#e2202a'; // 투구 꼭대기 붉은 술
-      c.beginPath();
-      c.moveTo(0, -46 * s);
-      c.quadraticCurveTo(-9 * s, -38 * s, -3 * s, -30 * s);
-      c.lineTo(3 * s, -30 * s);
-      c.quadraticCurveTo(9 * s, -38 * s, 0, -46 * s);
-      c.fill();
-      c.fillStyle = '#7d8794';
-      c.strokeStyle = '#2b1a10';
-      c.lineWidth = 2 * s;
-      c.beginPath();
-      c.arc(0, -10 * s, 24 * s, Math.PI, 0);
-      c.closePath();
-      c.fill();
-      c.stroke();
-      c.fillStyle = '#c9a227'; // 투구 테두리 금띠
-      c.fillRect(-29 * s, -13 * s, 58 * s, 6 * s);
-      c.strokeRect(-29 * s, -13 * s, 58 * s, 6 * s);
-      c.fillStyle = '#c9a227';
-      c.beginPath();
-      c.arc(0, -22 * s, 4 * s, 0, Math.PI * 2);
-      c.fill();
-      c.stroke();
-      c.strokeStyle = '#1c120c'; // 굳은 눈썹
-      c.lineWidth = 2.5 * s;
-      c.beginPath();
-      c.moveTo(-14 * s, -11 * s); c.lineTo(-5 * s, -8 * s);
-      c.moveTo(14 * s, -11 * s); c.lineTo(5 * s, -8 * s);
       c.stroke();
     } else if (tier === KING) { // 금관과 콧수염
       c.fillStyle = '#ffc22e';
