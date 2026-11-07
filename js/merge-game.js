@@ -4,7 +4,7 @@
   const AUTO_NEXT_MS = 3500;
   const W = 360, H = 520; // 그리기와 계산에 쓰는 논리 크기
   const DROP_Y = 46, DANGER_Y = 92; // 떨어뜨리는 높이와 넘치면 안 되는 선
-  const DROP_COOLDOWN_MS = 1500, MOVE_SPEED = 260; // 한 번 떨어뜨리면 1.5초 뒤에 다음 두더지를 떨어뜨릴 수 있다
+  const DROP_COOLDOWN_MS = 700, MOVE_SPEED = 260; // 한 번 떨어뜨리면 0.7초 뒤에 다음 두더지를 떨어뜨릴 수 있다
   const GRAVITY = 1100, SUBSTEPS = 6, BOUNCE = 0.12, FRICTION = 0.995;
   const OVER_MS = 1500, SETTLE_MS = 900; // 선을 넘은 채로 이만큼 있으면 끝난다. 막 떨어진 두더지는 봐준다.
   const WIN_DELAY_MS = 1100; // 두더지 왕이 나타난 걸 잠깐 보여 준 뒤 성공 카드를 띄운다
