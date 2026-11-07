@@ -4,9 +4,9 @@
   const SPACE_GOAL = 100; // 목표 개수. 이 숫자만 바꾸면 점수판과 카드 문구도 함께 바뀐다.
   const AUTO_NEXT_MS = 4000;
   // 난이도: 부순 개수가 늘수록 시작값에서 끝값으로 바뀐다. 간격은 최솟값과 최댓값 사이에서 고른다.
-  const SPAWN_GAP_START_MIN = 400, SPAWN_GAP_START_MAX = 520;
-  const SPAWN_GAP_END_MIN = 160, SPAWN_GAP_END_MAX = 270;
-  const DOUBLE_CHANCE_START = 0.3, DOUBLE_CHANCE_END = 0.6; // 두 개가 한꺼번에 나올 확률
+  const SPAWN_GAP_START_MIN = 220, SPAWN_GAP_START_MAX = 300;
+  const SPAWN_GAP_END_MIN = 90, SPAWN_GAP_END_MAX = 150;
+  const DOUBLE_CHANCE_START = 0.5, DOUBLE_CHANCE_END = 0.8; // 두 개가 한꺼번에 나올 확률
   const FALL_SPEED_START = 70, FALL_SPEED_END = 165;
   const BIG_CHANCE_START = 0.12, BIG_CHANCE_END = 0.4;
   const W = 400, H = 560; // 그리기와 계산에 쓰는 논리 크기
