@@ -10,8 +10,8 @@
   const STONE_SPEED = 340, ARROW_SPEED = 430, WAVE_SPEED = 300, FAN_ANGLE = 0.24;
   const BIG_WAVE_DMG = 70, BIG_LASER_DMG = 150, FIREBALL_SPEED = 320;
   // 보스
-  const BOSS_MAX_HP = 4000, BOSS_ATTACK = 80, BOSS_R = 44, BOSS_TOP = 60, BOSS_BOTTOM = 250;
-  const BOSS_SPEED = 30, RAGE_BELOW_HP = 2000, RAGE_SPEED = 1.6, RAGE_GAP = 0.7;
+  const BOSS_MAX_HP = 5000, BOSS_ATTACK = 80, BOSS_R = 44, BOSS_TOP = 60, BOSS_BOTTOM = 250;
+  const BOSS_SPEED = 30, RAGE_BELOW_HP = 2500, RAGE_SPEED = 1.6, RAGE_GAP = 0.7;
   const SKILL_GAP_MIN_MS = 2300, SKILL_GAP_MAX_MS = 3300;
   const STAR_BULLETS = 12, RAGE_STAR_BULLETS = 18, BULLET_SPEED = 135, BULLET_R = 6;
   const METEOR_COUNT = 5, METEOR_R = 30, METEOR_FALL_MS = 1000;
@@ -32,6 +32,9 @@
   const GIANT_R = 80, GIANT_FALL_MS = 1600;
   const BOUNCE_R = 10, BOUNCE_SPEED = 165, BOUNCE_TIMES = 3;
   const BOLT_COUNT = 6, BOLT_STEP = 55, BOLT_GAP_MS = 170, BOLT_WARN_MS = 500, BOLT_R = 28;
+  const WALL_WARN_MS = 700, WALL_MS = 2600, WALL_W = 14, WALL_GAP = 84; // 양옆에서 조여 오는 레이저 벽
+  const POISON_MS = 5000, POISON_R = 34, POISON_SPEED = 35, POISON_FADE_MS = 500;
+  const TORNADO_WARN_MS = 700, TORNADO_SPEED = 150, TORNADO_R = 26, TORNADO_WAVE = 55;
   // 기술 이름과 뽑힐 가중치. 지금 쓸 수 없는 기술은 canUse에서 걸러진다.
   const BOSS_SKILLS = [
     ['barrage', 18], ['meteors', 12], ['beam', 11], ['dash', 11], ['blackhole', 7],
@@ -39,6 +42,7 @@
     ['spiral', 11], ['quake', 9], ['cross', 9], ['starRain', 9],
     ['missiles', 10], ['clones', 9], ['sweep', 9], ['ice', 8],
     ['giant', 8], ['bounce', 8], ['lightning', 8],
+    ['walls', 8], ['poison', 8], ['tornado', 8],
   ];
   const W = 400, H = 520; // 그리기와 계산에 쓰는 논리 크기
   const MOVE_KEYS = {
@@ -55,7 +59,7 @@
   let playing = false;
   let frameId = 0, lastFrame = 0, clock = 0;
   let player, boss, allies, trail, shots, bullets, meteors, minions, beams, floats, hole, stars, quakes;
-  let missiles, clones, iceZones, bolts;
+  let missiles, clones, iceZones, bolts, walls, clouds, tornadoes;
   let hearts = MAX_HEARTS, invincibleUntil = 0, hurtUntil = 0;
   let nextStarAt = 0, hammerReadyAt = 0, guardUntil = 0, healReadyAt = 0, chipsText = '';
   let moves = { up: false, down: false, left: false, right: false };
@@ -306,6 +310,9 @@
     if (name === 'ice') return !iceZones.length;
     if (name === 'giant') return !meteors.length;
     if (name === 'lightning') return !bolts.length;
+    if (name === 'walls') return !walls.length;
+    if (name === 'poison') return !clouds.length;
+    if (name === 'tornado') return !tornadoes.length;
     return true;
   }
   function chooseSkill() {
@@ -517,7 +524,47 @@
       addFloat(boss.x, boss.y - BOSS_R - 28, '연쇄 번개!', '#fff59a');
       endSkill();
     },
+    // 레이저 벽: 양옆에서 레이저 벽이 가운데로 조여 온다. 벽마다 뚫린 틈으로 빠져나가야 한다.
+    walls() {
+      const start = clock + WALL_WARN_MS;
+      const ms = WALL_MS * (raging() ? 0.8 : 1);
+      const gapY = () => rand(WALL_GAP, H - WALL_GAP);
+      walls = [{ side: -1, gapY: gapY(), start, ms }, { side: 1, gapY: gapY(), start, ms }];
+      addFloat(boss.x, boss.y - BOSS_R - 28, '레이저 벽!', '#ff7ad9');
+      GameSound.play('bossBeam');
+      endSkill();
+    },
+    // 독구름: 초록 구름이 천천히 나를 따라온다. 안에 있으면 계속 다친다.
+    poison() {
+      const count = raging() ? 3 : 2;
+      for (let i = 0; i < count; i++) {
+        const spot = i === 0 ? { x: boss.x, y: boss.y + 40 } : farPoint();
+        clouds.push({ x: spot.x, y: spot.y, start: clock, until: clock + POISON_MS });
+      }
+      addFloat(boss.x, boss.y - BOSS_R - 28, '독구름!', '#9dff8a');
+      GameSound.play('bossBlackhole');
+      endSkill();
+    },
+    // 회오리: 화면 옆에서 회오리가 물결치며 가로질러 온다. 들어올 쪽에 화살표가 먼저 뜬다.
+    tornado() {
+      const count = raging() ? 3 : 2;
+      for (let i = 0; i < count; i++) {
+        const dir = i % 2 ? -1 : 1; // 번갈아 왼쪽, 오른쪽에서 들어온다
+        tornadoes.push({
+          dir, x: dir > 0 ? -TORNADO_R : W + TORNADO_R, y0: rand(H * 0.3, H - 60), y: 0,
+          phase: rand(0, Math.PI * 2), start: clock + TORNADO_WARN_MS + i * 350,
+        });
+      }
+      tornadoes.forEach(t => { t.y = t.y0; });
+      addFloat(boss.x, boss.y - BOSS_R - 28, '회오리!', '#cfe3ff');
+      GameSound.play('bossBody');
+      endSkill();
+    },
   };
+  function wallX(w) {
+    const t = clamp((clock - w.start) / w.ms, 0, 1);
+    return w.side < 0 ? t * W / 2 : W - t * W / 2;
+  }
   function sweepDirVec() { return { x: Math.cos(boss.sweepAngle), y: Math.sin(boss.sweepAngle) }; }
   const iceActive = z => clock - z.start >= ICE_FADE_MS; // 깔리는 동안에는 아직 미끄럽지 않다
   const onIce = target => iceZones.some(z => iceActive(z) && Math.hypot(target.x - z.x, target.y - z.y) < ICE_R);
@@ -770,6 +817,37 @@
       if (!playing) return;
     }
     bolts = bolts.filter(bolt => !bolt.struck || clock < bolt.at + 220);
+
+    // 레이저 벽: 벽에 닿았는데 틈 높이가 아니면 맞는다.
+    walls = walls.filter(w => clock < w.start + w.ms);
+    const hitByWall = target => walls.some(w => clock >= w.start
+      && Math.abs(target.x - wallX(w)) < WALL_W / 2 + 4 && Math.abs(target.y - w.gapY) > WALL_GAP / 2);
+    if (hitByWall(player)) hitPlayer();
+    if (!playing) return;
+    livingAllies().forEach(ally => { if (hitByWall(ally)) hitAlly(ally, BOSS_ATTACK); });
+
+    // 독구름: 천천히 나를 따라오고, 안에 있으면 맞는다(무적 시간 덕분에 1초에 한 번).
+    clouds = clouds.filter(c => clock < c.until);
+    for (const c of clouds) {
+      const dir = aimDir(c, player);
+      const speed = POISON_SPEED * (raging() ? 1.4 : 1);
+      c.x += dir.x * speed * sec;
+      c.y += dir.y * speed * sec;
+      if (clock - c.start < POISON_FADE_MS) continue; // 퍼지는 동안은 아직 해롭지 않다
+      hitArea(c.x, c.y, POISON_R - 6, BOSS_ATTACK * 0.5);
+      if (!playing) return;
+    }
+
+    // 회오리: 물결치며 가로지르고, 반대편으로 빠져나가면 사라진다.
+    tornadoes = tornadoes.filter(t => (t.dir > 0 ? t.x < W + TORNADO_R + 5 : t.x > -TORNADO_R - 5));
+    for (const t of tornadoes) {
+      if (clock < t.start) continue;
+      t.x += t.dir * TORNADO_SPEED * (raging() ? 1.2 : 1) * sec;
+      t.phase += sec * 3;
+      t.y = t.y0 + Math.sin(t.phase) * TORNADO_WAVE;
+      hitArea(t.x, t.y, TORNADO_R, BOSS_ATTACK * 0.8);
+      if (!playing) return;
+    }
   }
 
   /* 진행 */
@@ -1372,6 +1450,86 @@
       ctx.fill();
     });
   }
+  function drawWalls() {
+    walls.forEach(w => {
+      const warn = clock < w.start;
+      const x = warn ? (w.side < 0 ? WALL_W / 2 : W - WALL_W / 2) : wallX(w);
+      const top = w.gapY - WALL_GAP / 2, bottom = w.gapY + WALL_GAP / 2;
+      ctx.save();
+      if (warn) { // 시작 전: 벽이 나올 자리와 틈을 점선으로 보여 준다
+        ctx.strokeStyle = 'rgba(255,122,217,.85)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(x, 0); ctx.lineTo(x, top);
+        ctx.moveTo(x, bottom); ctx.lineTo(x, H);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = 'rgba(255,90,210,.85)';
+        ctx.fillRect(x - WALL_W / 2, 0, WALL_W, top);
+        ctx.fillRect(x - WALL_W / 2, bottom, WALL_W, H - bottom);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x - 2, 0, 4, top);
+        ctx.fillRect(x - 2, bottom, 4, H - bottom);
+      }
+      // 틈 양 끝 표시
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#ffe066';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x - 10, top); ctx.lineTo(x + 10, top);
+      ctx.moveTo(x - 10, bottom); ctx.lineTo(x + 10, bottom);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+  function drawPoison() {
+    clouds.forEach(c => {
+      const grow = clamp((clock - c.start) / POISON_FADE_MS, 0, 1);
+      const fade = clamp((c.until - clock) / 500, 0, 1);
+      ctx.globalAlpha = fade;
+      for (let i = 0; i < 5; i++) { // 뭉게뭉게 겹친 초록 구름
+        const a = i / 5 * Math.PI * 2 + clock / 900;
+        ctx.fillStyle = grow < 1 ? 'rgba(120,230,110,.18)' : 'rgba(120,230,110,.32)';
+        ctx.beginPath();
+        ctx.arc(c.x + Math.cos(a) * 12 * grow, c.y + Math.sin(a) * 9 * grow, 20 * grow, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(40,90,40,.8)'; // 해골 대신 작은 독 방울
+      [-7, 0, 7].forEach((dx, i) => {
+        ctx.beginPath();
+        ctx.arc(c.x + dx, c.y + Math.sin(clock / 200 + i) * 3, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    });
+  }
+  function drawTornadoes() {
+    tornadoes.forEach(t => {
+      if (clock < t.start) { // 들어올 쪽 가장자리에 화살표
+        const x = t.dir > 0 ? 14 : W - 14;
+        ctx.fillStyle = Math.floor(clock / 120) % 2 ? '#cfe3ff' : 'rgba(207,227,255,.4)';
+        ctx.beginPath();
+        ctx.moveTo(x + t.dir * 10, t.y0);
+        ctx.lineTo(x - t.dir * 6, t.y0 - 10);
+        ctx.lineTo(x - t.dir * 6, t.y0 + 10);
+        ctx.closePath();
+        ctx.fill();
+        return;
+      }
+      ctx.save();
+      ctx.translate(t.x, t.y);
+      for (let i = 0; i < 5; i++) { // 아래로 갈수록 좁아지는 소용돌이
+        const ry = -TORNADO_R + i * 12, rx = TORNADO_R - i * 4;
+        ctx.strokeStyle = `rgba(207,227,255,${0.9 - i * 0.12})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(Math.sin(clock / 90 + i) * 4, ry, rx, 5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+  }
   function draw() {
     drawSpace();
     drawIce();
@@ -1387,6 +1545,9 @@
     drawAllies();
     drawPlayer();
     drawBolts();
+    drawWalls();
+    drawPoison();
+    drawTornadoes();
     drawBullets();
     drawMissiles();
     drawShots();
@@ -1472,6 +1633,9 @@
     clones = [];
     iceZones = [];
     bolts = [];
+    walls = [];
+    clouds = [];
+    tornadoes = [];
     minions = [];
     beams = [];
     floats = [];
